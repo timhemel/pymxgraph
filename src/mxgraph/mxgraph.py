@@ -37,6 +37,60 @@ def parse_style_string(s):
     kvs = [ trysplit(x) for x in l ]
     return dict(kvs)
 
+class CellStore:
+
+    def __init__(self):
+        self.current_id = 0
+        self.cells = {}
+
+    def __new_id(self):
+        while str(self.current_id) in self.cells:
+            self.current_id += 1
+        return str(self.current_id)
+
+    def get(self, key):
+        return self.cells.get(key)
+
+    def __getitem__(self, key):
+        return self.cells[key]
+
+    def __setitem__(self, key, value):
+        self.cells[key] = value
+
+    def items(self):
+        return self.cells.items()
+
+    def add_cell(self, cell):
+        self.cells[cell['id']] = cell
+
+    def mxGroupCell(self, parent=None):
+        cell = MxGroupCell()
+        cell['id'] = self.__new_id()
+        self.add_cell(cell)
+        return cell
+
+    def mxVertexCell(self, parent=None):
+        cell = MxVertexCell()
+        cell['id'] = self.__new_id()
+        cell.set_parent(parent)
+        self.add_cell(cell)
+        return cell
+
+    def mxEdgeCell(self, parent=None, source=None, target=None):
+        cell = MxEdgeCell()
+        cell['id'] = self.__new_id()
+        cell.set_parent(parent)
+        cell.set_source(source)
+        cell.set_target(target)
+        self.add_cell(cell)
+        return cell
+
+    def mxStyle(self, **kwargs):
+        return MxStyle(**kwargs)
+
+    def mxEdgeGeometry(self, points):
+        return MxEdgeGeometry(points)
+
 class MxBase:
 
     def __init__(self):
@@ -57,6 +111,9 @@ class MxBase:
 
 class MxStyle(MxBase):
 
+    def __init__(self, **kwargs):
+        self.attrs = kwargs
+
     @classmethod
     def from_string(cls, s):
         mxstyle = MxStyle()
@@ -65,10 +122,19 @@ class MxStyle(MxBase):
 
     def to_string(self):
         shapes = [ k+';' for k,v in self.attrs.items() if v is None ]
-        styles = [ k+'='+v+';' for k,v in self.attrs.items() if v is not None ]
+        styles = [ k+'='+str(v)+';' for k,v in self.attrs.items() if v is not None ]
         return "".join(shapes + styles)
 
 class MxGeometry(MxBase):
+
+    @classmethod
+    def from_xml(self, cell_store, xml_element):
+        if set(['x','y','width','height']).issubset(xml_element.keys()):
+            return MxVertexGeometry.from_xml(cell_store, xml_element)
+        else:
+            return MxEdgeGeometry.from_xml(cell_store, xml_element)
+
+class MxVertexGeometry(MxGeometry):
 
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -78,8 +144,8 @@ class MxGeometry(MxBase):
         self.height = height
 
     @classmethod
-    def from_xml(cls, xml_element):
-        return MxGeometry(
+    def from_xml(cls, cell_store, xml_element):
+        return MxVertexGeometry(
                 int(xml_element.get('x')),
                 int(xml_element.get('y')),
                 int(xml_element.get('width')),
@@ -94,19 +160,55 @@ class MxGeometry(MxBase):
         geom.set('as', 'geometry')
         return geom
 
+class MxEdgeGeometry(MxGeometry):
+
+    def __init__(self, points):
+        super().__init__()
+        self.points = points
+
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        return None
+
+    def to_xml(self):
+        geom = ET.Element('mxGeometry')
+        geom.set('relative', '1')
+        geom.set('as', 'geometry')
+        array = ET.SubElement(geom, 'Array')
+        # add points
+        for x,y in self.points:
+            point = ET.SubElement(array, 'mxPoint')
+            point.set('x', str(x))
+            point.set('y', str(y))
+        return geom
+
+
 class MxCell(MxBase):
 
     @classmethod
-    def from_xml(cls, xml_element):
+    def from_xml(cls, cell_store, xml_element):
         # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxCell-js.html
-        cell = MxCell()
+        # cell = MxCell()
         if xml_element.get('vertex'):
-            cell.geometry = MxGeometry.from_xml(xml_element.find('mxGeometry'))
+            cell = MxVertexCell.from_xml(cell_store, xml_element)
         elif xml_element.get('edge'):
-            pass
-        cell.attrs = dict(xml_element.items())
-        cell.style = MxStyle.from_string(cell.attrs.get('style',''))
+            cell = MxEdgeCell.from_xml(cell_store, xml_element)
+        cell.set_attributes_from_xml(cell_store, xml_element)
+        cell_store.add_cell(cell)
         return cell
+
+    def set_attributes_from_xml(self, cell_store, xml_element):
+        self.geometry = MxGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
+        self.attrs = dict(xml_element.items())
+        self.style = MxStyle.from_string(self.attrs.get('style',''))
+
+    def set_parent(self, parent):
+        self.parent = parent
+        if parent is not None:
+            self.attrs['parent'] = parent['id']
+
+    def get_parent(self):
+        return self.parent
 
     def to_xml(self):
         cell = ET.Element('mxCell')
@@ -117,11 +219,69 @@ class MxCell(MxBase):
         cell.append(geom)
         return cell
 
+    def is_vertex(self):
+        return False
+
+    def is_edge(self):
+        return False
+
     def set_geometry(self, geom):
         self.geometry = geom
 
     def set_style(self, style):
         self.style = style
+
+class MxGroupCell(MxCell):
+    pass
+
+class MxVertexCell(MxCell):
+
+    def __init__(self):
+        super().__init__()
+        self.attrs['vertex'] = '1'
+
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        cell = MxVertexCell()
+        return cell
+
+    def is_vertex(self):
+        return True
+
+
+class MxEdgeCell(MxCell):
+
+    def __init__(self):
+        super().__init__()
+        self.attrs['edge'] = '1'
+
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        cell = MxEdgeCell()
+        source = cell_store[xml_element.get('source')]
+        cell.set_source(source)
+        target = cell_store[xml_element.get('target')]
+        cell.set_target(target)
+        # lookup source and target vertex
+        return cell
+
+    def is_edge(self):
+        return True
+
+    def set_source(self, vertex):
+        self.source = vertex
+        self.attrs['source'] = vertex['id']
+
+    def set_target(self, vertex):
+        self.target = vertex
+        self.attrs['target'] = vertex['id']
+
+    def get_source(self):
+        return self.source
+
+    def get_target(self):
+        return self.target
+
 
 class MxGraphModel(MxBase):
     pass
