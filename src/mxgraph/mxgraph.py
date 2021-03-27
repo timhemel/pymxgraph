@@ -217,12 +217,6 @@ class MxCell(MxBase):
     def is_edge(self):
         return False
 
-    def set_geometry(self, geom):
-        self.geometry = geom
-
-    def set_style(self, style):
-        self.style = style
-
 class MxGroupCell(MxCell):
 
     @classmethod

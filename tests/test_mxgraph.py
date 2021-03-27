@@ -79,9 +79,9 @@ def test_create_mxcell_vertex():
     cell.parent = parent
     style_string = "ellipse;html=1;"
     style = MxStyle.from_string(style_string)
-    cell.set_style(style)
+    cell.style = style
     geom = MxVertexGeometry(300,400,100,50)
-    cell.set_geometry(geom)
+    cell.geometry = geom
     x = cell.to_xml()
     assert x.get('id') == '42'
     assert x.get('vertex') == '1'
@@ -138,9 +138,9 @@ def test_create_mxcell_edge():
     cell.target = target_vertex
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = MxStyle.from_string(style_string)
-    cell.set_style(style)
+    cell.style = style
     geom = MxEdgeGeometry([(240,310)])
-    cell.set_geometry(geom)
+    cell.geometry = geom
     x = cell.to_xml()
     assert x.get('id') == '42'
     assert x.get('edge') == '1'
@@ -162,9 +162,9 @@ def test_cell_store():
     edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = cs.mxStyle(edgeStyle='none',curved=1,orthogonalLoop=1,jettySize='auto',html=1)
-    edge.set_style(style)
+    edge.style = style
     geom = cs.mxEdgeGeometry([(240,310)])
-    edge.set_geometry(geom)
+    edge.geometry = geom
     assert source_vertex.parent == parent
     assert edge.parent == parent
     assert edge.source == source_vertex
