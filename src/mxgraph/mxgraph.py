@@ -295,7 +295,6 @@ class MxGraph(MxBase):
         g = MxGraph()
         g.attrs = dict(xml_element.items())
         cells = [ MxCell.from_xml(cell_store, x) for x in xml_element.findall('root/mxCell') ]
-        print(cells)
         return g
 
     def to_xml(self, cell_store):
