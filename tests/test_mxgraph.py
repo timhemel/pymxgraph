@@ -76,7 +76,7 @@ def test_read_mxcell_vertex(cell_store):
 def test_create_mxcell_vertex():
     parent = MxGroupCell('1')
     cell = MxVertexCell('42')
-    cell.set_parent(parent)
+    cell.parent = parent
     style_string = "ellipse;html=1;"
     style = MxStyle.from_string(style_string)
     cell.set_style(style)
@@ -131,11 +131,11 @@ def test_read_mxcell_edge_unknown_vertex(cell_store):
 def test_create_mxcell_edge():
     parent = MxGroupCell('1')
     cell = MxEdgeCell('42')
-    cell.set_parent(parent)
+    cell.parent = parent
     source_vertex = MxVertexCell('23')
     target_vertex = MxVertexCell('54')
-    cell.set_source(source_vertex)
-    cell.set_target(target_vertex)
+    cell.source = source_vertex
+    cell.target = target_vertex
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = MxStyle.from_string(style_string)
     cell.set_style(style)
@@ -165,8 +165,8 @@ def test_cell_store():
     edge.set_style(style)
     geom = cs.mxEdgeGeometry([(240,310)])
     edge.set_geometry(geom)
-    assert source_vertex.get_parent() == parent
-    assert edge.get_parent() == parent
+    assert source_vertex.parent == parent
+    assert edge.parent == parent
     assert edge.source == source_vertex
     assert edge.target == target_vertex
     assert set(cs.cells.keys()) == set([parent.cell_id, source_vertex.cell_id, target_vertex.cell_id, edge.cell_id])

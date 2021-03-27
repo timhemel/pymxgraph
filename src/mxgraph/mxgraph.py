@@ -66,23 +66,23 @@ class CellStore:
     def mxGroupCell(self, parent=None):
         cell_id = self.__new_id()
         cell = MxGroupCell(cell_id)
-        cell.set_parent(parent)
+        cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxVertexCell(self, parent=None):
         cell_id = self.__new_id()
         cell = MxVertexCell(cell_id)
-        cell.set_parent(parent)
+        cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxEdgeCell(self, parent=None, source=None, target=None):
         cell_id = self.__new_id()
         cell = MxEdgeCell(cell_id)
-        cell.set_parent(parent)
-        cell.set_source(source)
-        cell.set_target(target)
+        cell.parent = parent
+        cell.source = source
+        cell.target = target
         self.add_cell(cell)
         return cell
 
@@ -213,13 +213,6 @@ class MxCell(MxBase):
     def set_attributes_from_xml(self, cell_store, xml_element):
         pass
 
-    def set_parent(self, parent):
-        self.parent = parent
-        # if parent is not None: self.attrs['parent'] = parent.cell_id
-
-    def get_parent(self):
-        return self.parent
-
     def to_xml(self):
         cell_xml = ET.Element('mxCell')
         for k,v in self.attrs.items():
@@ -287,9 +280,9 @@ class MxEdgeCell(MxNonGroupCell):
     def from_xml(cls, cell_store, xml_element):
         cell = MxEdgeCell(None)
         source = cell_store[xml_element.get('source')]
-        cell.set_source(source)
+        cell.source = source
         target = cell_store[xml_element.get('target')]
-        cell.set_target(target)
+        cell.target = target
         return cell
 
     def to_xml(self):
@@ -300,12 +293,6 @@ class MxEdgeCell(MxNonGroupCell):
 
     def is_edge(self):
         return True
-
-    def set_source(self, vertex):
-        self.source = vertex
-
-    def set_target(self, vertex):
-        self.target = vertex
 
 
 class MxGraphModel(MxBase):
