@@ -122,7 +122,7 @@ class MxStyle(MxBase):
 class MxGeometry(MxBase):
 
     @classmethod
-    def from_xml(self, cell_store, xml_element):
+    def from_xml(cls, cell_store, xml_element):
         if set(['x','y','width','height']).issubset(xml_element.keys()):
             return MxVertexGeometry.from_xml(cell_store, xml_element)
         else:
