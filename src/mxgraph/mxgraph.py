@@ -54,21 +54,21 @@ class CellStore:
 
     def mxGroupCell(self, parent=None):
         cell_id = self.__new_id()
-        cell = MxGroupCell(cell_id)
+        cell = MxGroupCell(self, cell_id)
         cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxVertexCell(self, parent=None):
         cell_id = self.__new_id()
-        cell = MxVertexCell(cell_id)
+        cell = MxVertexCell(self, cell_id)
         cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxEdgeCell(self, parent=None, source=None, target=None):
         cell_id = self.__new_id()
-        cell = MxEdgeCell(cell_id)
+        cell = MxEdgeCell(self, cell_id)
         cell.parent = parent
         cell.source = source
         cell.target = target
@@ -179,10 +179,24 @@ class MxEdgeGeometry(MxGeometry):
 
 class MxCell(MxBase):
 
-    def __init__(self, cell_id):
+    def __init__(self, cell_store, cell_id):
+        self.cell_store = cell_store
         self.cell_id = cell_id
-        self.parent = None
+        self._parent_id = None
         super().__init__()
+
+    @property
+    def parent(self):
+        if self._parent_id is None:
+            return None
+        return self.cell_store[self._parent_id]
+
+    @parent.setter
+    def parent(self, cell):
+        if cell is not None:
+            self._parent_id = cell.cell_id
+        else:
+            self._parent_id = None
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
@@ -194,11 +208,12 @@ class MxCell(MxBase):
         else:
             cell = MxGroupCell.from_xml(cell_store, xml_element)
         cell.cell_id = xml_element.get('id')
-        parent_id = xml_element.get('parent')
-        if parent_id:
-            cell.parent = cell_store[parent_id]
-        else:
-            cell.parent = None
+        cell._parent_id = xml_element.get('parent')
+        # if parent_id:
+        #    cell.parent = cell_store[parent_id]
+        # else:
+        #    cell.parent = None
+        # cell.parent = None
         cell.set_attributes_from_xml(cell_store, xml_element)
         cell_store.add_cell(cell)
         return cell
@@ -225,7 +240,7 @@ class MxGroupCell(MxCell):
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        cell = MxGroupCell(None)
+        cell = MxGroupCell(cell_store, None)
         return cell
 
 class MxNonGroupCell(MxCell):
@@ -244,13 +259,13 @@ class MxNonGroupCell(MxCell):
 
 class MxVertexCell(MxNonGroupCell):
 
-    def __init__(self, cell_id):
-        super().__init__(cell_id)
+    def __init__(self, cell_store, cell_id):
+        super().__init__(cell_store, cell_id)
         self.attrs['vertex'] = '1'
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        cell = MxVertexCell(None)
+        cell = MxVertexCell(cell_store, None)
         return cell
 
     def is_vertex(self):
@@ -259,17 +274,37 @@ class MxVertexCell(MxNonGroupCell):
 
 class MxEdgeCell(MxNonGroupCell):
 
-    def __init__(self, cell_id):
-        super().__init__(cell_id)
+    def __init__(self, cell_store, cell_id):
+        super().__init__(cell_store, cell_id)
         self.attrs['edge'] = '1'
+        self._source_id = None
+        self._target_id = None
+
+    @property
+    def source(self):
+        return self.cell_store.cells[self._source_id]
+
+    @source.setter
+    def source(self, cell):
+        self._source_id = cell.cell_id
+
+    @property
+    def target(self):
+        return self.cell_store.cells[self._target_id]
+
+    @target.setter
+    def target(self, cell):
+        self._target_id = cell.cell_id
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        cell = MxEdgeCell(None)
-        source = cell_store[xml_element.get('source')]
-        cell.source = source
-        target = cell_store[xml_element.get('target')]
-        cell.target = target
+        cell = MxEdgeCell(cell_store, None)
+        # source = cell_store[xml_element.get('source')]
+        cell._source_id = xml_element.get('source')
+        # cell.source = None
+        cell._target_id = xml_element.get('target')
+        # target = cell_store[xml_element.get('target')]
+        # cell.target = None
         return cell
 
     def to_xml(self):
