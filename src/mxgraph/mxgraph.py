@@ -292,22 +292,20 @@ class MxEdgeCell(MxNonGroupCell):
         cell.set_target(target)
         return cell
 
+    def to_xml(self):
+        cell_xml = super().to_xml()
+        cell_xml.set('source', self.source.cell_id)
+        cell_xml.set('target', self.target.cell_id)
+        return cell_xml
+
     def is_edge(self):
         return True
 
     def set_source(self, vertex):
         self.source = vertex
-        self.attrs['source'] = vertex.cell_id
 
     def set_target(self, vertex):
         self.target = vertex
-        self.attrs['target'] = vertex.cell_id
-
-    def get_source(self):
-        return self.source
-
-    def get_target(self):
-        return self.target
 
 
 class MxGraphModel(MxBase):

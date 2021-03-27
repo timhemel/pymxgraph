@@ -110,10 +110,8 @@ def test_read_mxcell_edge(cell_store):
     cell = MxCell.from_xml(cell_store, cell_xml)
     assert cell.cell_id == "ltYZWVSzQ5NPo-W-WjXg-15"
     assert cell.is_edge()
-    assert cell['source'] == "ltYZWVSzQ5NPo-W-WjXg-3"
-    assert cell.get_source().cell_id == cell['source']
-    assert cell['target'] == "ltYZWVSzQ5NPo-W-WjXg-2"
-    assert cell.get_target().cell_id == cell['target']
+    assert cell.source == source
+    assert cell.target == target
     assert dict(cell.style.items()) == { "edgeStyle": "none", "curved": "1", "orthogonalLoop": "1", "jettySize": "auto", "html": "1" }
 
 def test_read_mxcell_edge_unknown_vertex(cell_store):
@@ -169,8 +167,8 @@ def test_cell_store():
     edge.set_geometry(geom)
     assert source_vertex.get_parent() == parent
     assert edge.get_parent() == parent
-    assert edge.get_source() == source_vertex
-    assert edge.get_target() == target_vertex
+    assert edge.source == source_vertex
+    assert edge.target == target_vertex
     assert set(cs.cells.keys()) == set([parent.cell_id, source_vertex.cell_id, target_vertex.cell_id, edge.cell_id])
 
 def test_cell_store_cell_id():
