@@ -188,6 +188,7 @@ class MxCell(MxBase):
 
     def __init__(self, cell_id):
         self.cell_id = cell_id
+        self.parent = None
         super().__init__()
 
     @classmethod
@@ -197,20 +198,24 @@ class MxCell(MxBase):
             cell = MxVertexCell.from_xml(cell_store, xml_element)
         elif xml_element.get('edge'):
             cell = MxEdgeCell.from_xml(cell_store, xml_element)
+        else:
+            cell = MxGroupCell.from_xml(cell_store, xml_element)
         cell.cell_id = xml_element.get('id')
+        parent_id = xml_element.get('parent')
+        if parent_id:
+            cell.parent = cell_store[parent_id]
+        else:
+            cell.parent = None
         cell.set_attributes_from_xml(cell_store, xml_element)
         cell_store.add_cell(cell)
         return cell
 
     def set_attributes_from_xml(self, cell_store, xml_element):
-        self.geometry = MxGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
-        self.attrs = dict(xml_element.items())
-        self.style = MxStyle.from_string(self.attrs.get('style',''))
+        pass
 
     def set_parent(self, parent):
         self.parent = parent
-        if parent is not None:
-            self.attrs['parent'] = parent.cell_id
+        # if parent is not None: self.attrs['parent'] = parent.cell_id
 
     def get_parent(self):
         return self.parent
@@ -220,9 +225,8 @@ class MxCell(MxBase):
         for k,v in self.attrs.items():
             cell_xml.set(k,v)
         cell_xml.set('id', self.cell_id)
-        cell_xml.set('style', self.style.to_string())
-        geom_xml = self.geometry.to_xml()
-        cell_xml.append(geom_xml)
+        if self.parent is not None:
+            cell_xml.set('parent', self.parent.cell_id)
         return cell_xml
 
     def is_vertex(self):
@@ -238,9 +242,27 @@ class MxCell(MxBase):
         self.style = style
 
 class MxGroupCell(MxCell):
-    pass
 
-class MxVertexCell(MxCell):
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        cell = MxGroupCell(None)
+        return cell
+
+class MxNonGroupCell(MxCell):
+
+    def set_attributes_from_xml(self, cell_store, xml_element):
+        self.geometry = MxGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
+        self.attrs = dict(xml_element.items())
+        self.style = MxStyle.from_string(self.attrs.get('style',''))
+
+    def to_xml(self):
+        cell_xml = super().to_xml()
+        cell_xml.set('style', self.style.to_string())
+        geom_xml = self.geometry.to_xml()
+        cell_xml.append(geom_xml)
+        return cell_xml
+
+class MxVertexCell(MxNonGroupCell):
 
     def __init__(self, cell_id):
         super().__init__(cell_id)
@@ -255,7 +277,7 @@ class MxVertexCell(MxCell):
         return True
 
 
-class MxEdgeCell(MxCell):
+class MxEdgeCell(MxNonGroupCell):
 
     def __init__(self, cell_id):
         super().__init__(cell_id)

@@ -32,6 +32,7 @@ def test_read_geometry(cell_store):
     assert geom.width == 120
     assert geom.height == 60
 
+
 def test_create_vertex_geometry():
     geom = MxVertexGeometry(50,220,120,60)
     assert geom.x == 50
@@ -44,21 +45,38 @@ def test_create_vertex_geometry():
     assert x.get('width') == '120'
     assert x.get('height') == '60'
 
+def test_read_root_vertex(cell_store):
+    cell_string = """<mxCell id="0" />"""
+    cell_xml = dxml.fromstring(cell_string)
+    cell = MxCell.from_xml(cell_store, cell_xml)
+    assert cell.cell_id == "0"
+    assert cell.parent == None
+
+def test_create_root_vertex():
+    cell = MxGroupCell('0')
+    x = cell.to_xml()
+    assert x.get('id') == '0'
+    assert x.get('parent') == None
+
 def test_read_mxcell_vertex(cell_store):
+    parent = MxGroupCell('1')
+    cell_store.add_cell(parent)
     cell_string = """
     <mxCell id="ltYZWVSzQ5NPo-W-WjXg-1" value="test vertex" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
       <mxGeometry x="50" y="220" width="120" height="60" as="geometry"/>
     </mxCell>"""
     cell_xml = dxml.fromstring(cell_string)
     cell = MxCell.from_xml(cell_store, cell_xml)
-    assert cell['id'] == "ltYZWVSzQ5NPo-W-WjXg-1"
+    assert cell.cell_id == "ltYZWVSzQ5NPo-W-WjXg-1"
+    assert cell.parent == parent
     assert cell.is_vertex()
     assert cell['value'] == "test vertex"
     assert dict(cell.style.items()) == { 'rounded':'0', 'whiteSpace':'wrap', 'html': '1' }
 
 def test_create_mxcell_vertex():
+    parent = MxGroupCell('1')
     cell = MxVertexCell('42')
-    cell['parent'] = '1'
+    cell.set_parent(parent)
     style_string = "ellipse;html=1;"
     style = MxStyle.from_string(style_string)
     cell.set_style(style)
@@ -73,6 +91,8 @@ def test_create_mxcell_vertex():
 
 
 def test_read_mxcell_edge(cell_store):
+    parent = MxGroupCell('1')
+    cell_store.add_cell(parent)
     source = MxVertexCell("ltYZWVSzQ5NPo-W-WjXg-3")
     cell_store.add_cell(source)
     target = MxVertexCell("ltYZWVSzQ5NPo-W-WjXg-2")
@@ -111,8 +131,9 @@ def test_read_mxcell_edge_unknown_vertex(cell_store):
  
 
 def test_create_mxcell_edge():
+    parent = MxGroupCell('1')
     cell = MxEdgeCell('42')
-    cell['parent'] = '1'
+    cell.set_parent(parent)
     source_vertex = MxVertexCell('23')
     target_vertex = MxVertexCell('54')
     cell.set_source(source_vertex)
@@ -147,9 +168,7 @@ def test_cell_store():
     geom = cs.mxEdgeGeometry([(240,310)])
     edge.set_geometry(geom)
     assert source_vertex.get_parent() == parent
-    assert source_vertex['parent'] == parent.cell_id
     assert edge.get_parent() == parent
-    assert edge['parent'] == parent.cell_id
     assert edge.get_source() == source_vertex
     assert edge.get_target() == target_vertex
     assert set(cs.cells.keys()) == set([parent.cell_id, source_vertex.cell_id, target_vertex.cell_id, edge.cell_id])
