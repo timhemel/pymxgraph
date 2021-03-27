@@ -253,9 +253,8 @@ def xtest_read_file():
     assert False
 
 def main():
-    mx = MxGraph()
-    mx.from_file(sys.stdin)
-    mx.to_file(sys.stdout)
+    mxfile = MxFile.from_file(sys.stdin)
+    mxfile.to_file(sys.stdout)
 
 if __name__=="__main__":
     main()
