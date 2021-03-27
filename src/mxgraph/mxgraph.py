@@ -305,28 +305,32 @@ class MxGraph(MxBase):
         root_xml.extend([c.to_xml() for c in cell_store.cells.values()])
         return g_xml
 
-    def set_shapes(self, graph_xml):
-        # print(dxml.tostring(graph_xml).decode('utf-8'))
-        print(graph_xml.items())
-        self.cells = [create_mxcell_from_xml(x) for x in graph_xml.findall('root/mxCell')]
-        # print(self.cells)
-        # for c in self.cells: # print(c)
+class MxDiagram(MxBase):
 
-    def from_file(self, f):
+    @classmethod
+    def from_xml(cls, xml_element):
+        diagram = MxDiagram()
+        diagram.attrs.update(dict(xml_element.items()))
+
+        t = urllib.parse.unquote(zlib.decompress(base64.b64decode(xml_element.text), -zlib.MAX_WBITS).decode("utf-8"))
+        graph_string = t
+        graph_xml = dxml.fromstring(t)
+
+        diagram.cell_store = CellStore()
+        diagram.mxgraph = MxGraph.from_xml(diagram.cell_store, graph_xml)
+        return diagram
+
+
+class MxFile(MxBase):
+
+    @classmethod
+    def from_file(cls, f):
+        mxfile = MxFile()
         et = dxml.parse(f)
         root = et.getroot()
-        diagram = root.findall("diagram")[0]
-        # print(diagram.text)
-        # t = urllib.parse.unquote(zlib.decompress(base64.b64decode(diagram.text), -15))
-        t = urllib.parse.unquote(zlib.decompress(base64.b64decode(diagram.text), -zlib.MAX_WBITS).decode("utf-8"))
-        self.graph_string = t
-        self.graph_xml = dxml.fromstring(t)
-        self.set_shapes(self.graph_xml)
-        # print(self.graph_xml)
-
-    def shapes_to_xml(self):
-        pass
-        # drawio adds to default parent cells id 0 and 1, 1 having 0 as the parent
+        mxfile.attrs.update(dict(root.items()))   # TODO: dict mixin
+        diagram = MxDiagram.from_xml(root.find("diagram"))
+        return mxfile
 
     def to_file(self, f):
         # <mxfile host="Electron" modified="2021-03-20T11:18:12.728Z" agent="5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/14.1.8 Chrome/87.0.4280.88 Electron/11.1.1 Safari/537.36" etag="kQo77z5om65T-AUhIzrJ" version="14.1.8" type="device"><diagram id="FSWUdnHGcb4EeTo7y5cW" name="Page-1">
