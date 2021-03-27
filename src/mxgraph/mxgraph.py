@@ -78,8 +78,12 @@ class CellStore:
     def mxStyle(self, **kwargs):
         return MxStyle(**kwargs)
 
+    def mxVertexGeometry(self, x, y, width, height):
+        return MxVertexGeometry(x, y, width, height)
+
     def mxEdgeGeometry(self, points):
         return MxEdgeGeometry(points)
+
 
 class MxBase:
 
@@ -282,9 +286,25 @@ class MxGraphModel(MxBase):
     pass
 
 
-class MxGraph:
+class MxGraph(MxBase):
     def __init__(self):
-        pass
+        super().__init__()
+
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        g = MxGraph()
+        g.attrs = dict(xml_element.items())
+        cells = [ MxCell.from_xml(cell_store, x) for x in xml_element.findall('root/mxCell') ]
+        print(cells)
+        return g
+
+    def to_xml(self, cell_store):
+        g_xml = ET.Element('mxGraph')
+        for k,v in self.attrs.items():
+            g_xml.set(k,v)
+        root_xml = ET.SubElement(g_xml, 'root')
+        root_xml.extend([c.to_xml() for c in cell_store.cells.values()])
+        return g_xml
 
     def set_shapes(self, graph_xml):
         # print(dxml.tostring(graph_xml).decode('utf-8'))

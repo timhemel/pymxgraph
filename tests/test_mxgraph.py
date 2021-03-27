@@ -182,6 +182,70 @@ def test_cell_store_cell_id():
     edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
     assert edge.cell_id not in [ parent.cell_id, source_vertex.cell_id, target_vertex.cell_id ]
 
+def test_read_mxgraph(cell_store):
+    graph_string = """
+    <mxGraphModel dx="1102" dy="825" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-1" value="Ext1" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+      <mxGeometry x="90" y="320" width="120" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-6" value="" style="group" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="340" y="240" width="80" height="210" as="geometry" />
+    </mxCell>
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-2" value="P1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="X49CK6sKVQ1RPVU1MZDR-6">
+      <mxGeometry width="80" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-3" value="P2" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="X49CK6sKVQ1RPVU1MZDR-6">
+      <mxGeometry y="130" width="80" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-4" value="" style="endArrow=classic;html=1;fontColor=#FF3333;" edge="1" parent="X49CK6sKVQ1RPVU1MZDR-6" source="X49CK6sKVQ1RPVU1MZDR-3" target="X49CK6sKVQ1RPVU1MZDR-2">
+      <mxGeometry width="50" height="50" relative="1" as="geometry">
+        <mxPoint x="400" y="450" as="sourcePoint" />
+        <mxPoint x="450" y="400" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="X49CK6sKVQ1RPVU1MZDR-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="X49CK6sKVQ1RPVU1MZDR-6" source="X49CK6sKVQ1RPVU1MZDR-3" target="X49CK6sKVQ1RPVU1MZDR-2">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="180" y="170" />
+          <mxPoint x="180" y="40" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>"""
+    graph_xml = dxml.fromstring(graph_string)
+    mx = MxGraph.from_xml(cell_store, graph_xml)
+    assert mx['pageWidth'] == '850'
+    assert len(cell_store.items()) == 8
+    assert cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == cell_store['X49CK6sKVQ1RPVU1MZDR-6']
+
+def test_create_mxgraph(cell_store):
+    g = MxGraph()
+    g['pageWidth'] = '850'
+    cell0 = cell_store.mxGroupCell()
+    cell1 = cell_store.mxGroupCell(parent = cell0)
+    v1 = cell_store.mxVertexCell(parent = cell1)
+    v1.style = cell_store.mxStyle(ellipse=None, x=45)
+    v1.geometry = cell_store.mxVertexGeometry(10,20,400,300)
+    v2 = cell_store.mxVertexCell(parent = cell1)
+    v2.style = cell_store.mxStyle(ellipse=None, x=45)
+    v2.geometry = cell_store.mxVertexGeometry(10,20,400,300)
+    v3 = cell_store.mxEdgeCell(parent = cell1)
+    v3.source = v1
+    v3.target = v2
+    v3.style = cell_store.mxStyle(curve=1)
+    v3.geometry = cell_store.mxEdgeGeometry([(200,10)])
+
+    g_xml = g.to_xml(cell_store)
+    assert g_xml.get('pageWidth') == '850'
+    cells_xml = g_xml.findall('root/mxCell')
+    assert len(cells_xml) == 5
+    assert cells_xml[4].get('source') == v3.source.cell_id
+
+
 def xtest_read_file():
     mx = MxGraph()
     mx.from_file("test.drawio")
