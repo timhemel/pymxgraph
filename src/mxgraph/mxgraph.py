@@ -200,7 +200,7 @@ class MxCell(MxBase):
         return cell
 
     def set_attributes_from_xml(self, cell_store, xml_element):
-        pass
+        self.attrs = dict(xml_element.items())
 
     def to_xml(self):
         cell_xml = ET.Element('mxCell')
@@ -227,8 +227,8 @@ class MxGroupCell(MxCell):
 class MxNonGroupCell(MxCell):
 
     def set_attributes_from_xml(self, cell_store, xml_element):
+        super().set_attributes_from_xml(cell_store, xml_element)
         self.geometry = MxGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
-        self.attrs = dict(xml_element.items())
         self.style = MxStyle.from_string(self.attrs.get('style',''))
 
     def to_xml(self):
