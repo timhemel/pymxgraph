@@ -61,24 +61,25 @@ class CellStore:
         return self.cells.items()
 
     def add_cell(self, cell):
-        self.cells[cell['id']] = cell
+        self.cells[cell.cell_id] = cell
 
     def mxGroupCell(self, parent=None):
-        cell = MxGroupCell()
-        cell['id'] = self.__new_id()
+        cell_id = self.__new_id()
+        cell = MxGroupCell(cell_id)
+        cell.set_parent(parent)
         self.add_cell(cell)
         return cell
 
     def mxVertexCell(self, parent=None):
-        cell = MxVertexCell()
-        cell['id'] = self.__new_id()
+        cell_id = self.__new_id()
+        cell = MxVertexCell(cell_id)
         cell.set_parent(parent)
         self.add_cell(cell)
         return cell
 
     def mxEdgeCell(self, parent=None, source=None, target=None):
-        cell = MxEdgeCell()
-        cell['id'] = self.__new_id()
+        cell_id = self.__new_id()
+        cell = MxEdgeCell(cell_id)
         cell.set_parent(parent)
         cell.set_source(source)
         cell.set_target(target)
@@ -185,14 +186,18 @@ class MxEdgeGeometry(MxGeometry):
 
 class MxCell(MxBase):
 
+    def __init__(self, cell_id):
+        self.cell_id = cell_id
+        super().__init__()
+
     @classmethod
     def from_xml(cls, cell_store, xml_element):
         # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxCell-js.html
-        # cell = MxCell()
         if xml_element.get('vertex'):
             cell = MxVertexCell.from_xml(cell_store, xml_element)
         elif xml_element.get('edge'):
             cell = MxEdgeCell.from_xml(cell_store, xml_element)
+        cell.cell_id = xml_element.get('id')
         cell.set_attributes_from_xml(cell_store, xml_element)
         cell_store.add_cell(cell)
         return cell
@@ -205,19 +210,20 @@ class MxCell(MxBase):
     def set_parent(self, parent):
         self.parent = parent
         if parent is not None:
-            self.attrs['parent'] = parent['id']
+            self.attrs['parent'] = parent.cell_id
 
     def get_parent(self):
         return self.parent
 
     def to_xml(self):
-        cell = ET.Element('mxCell')
+        cell_xml = ET.Element('mxCell')
         for k,v in self.attrs.items():
-            cell.set(k,v)
-        cell.set('style', self.style.to_string())
-        geom = self.geometry.to_xml()
-        cell.append(geom)
-        return cell
+            cell_xml.set(k,v)
+        cell_xml.set('id', self.cell_id)
+        cell_xml.set('style', self.style.to_string())
+        geom_xml = self.geometry.to_xml()
+        cell_xml.append(geom_xml)
+        return cell_xml
 
     def is_vertex(self):
         return False
@@ -236,13 +242,13 @@ class MxGroupCell(MxCell):
 
 class MxVertexCell(MxCell):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, cell_id):
+        super().__init__(cell_id)
         self.attrs['vertex'] = '1'
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        cell = MxVertexCell()
+        cell = MxVertexCell(None)
         return cell
 
     def is_vertex(self):
@@ -251,18 +257,17 @@ class MxVertexCell(MxCell):
 
 class MxEdgeCell(MxCell):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, cell_id):
+        super().__init__(cell_id)
         self.attrs['edge'] = '1'
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        cell = MxEdgeCell()
+        cell = MxEdgeCell(None)
         source = cell_store[xml_element.get('source')]
         cell.set_source(source)
         target = cell_store[xml_element.get('target')]
         cell.set_target(target)
-        # lookup source and target vertex
         return cell
 
     def is_edge(self):
@@ -270,11 +275,11 @@ class MxEdgeCell(MxCell):
 
     def set_source(self, vertex):
         self.source = vertex
-        self.attrs['source'] = vertex['id']
+        self.attrs['source'] = vertex.cell_id
 
     def set_target(self, vertex):
         self.target = vertex
-        self.attrs['target'] = vertex['id']
+        self.attrs['target'] = vertex.cell_id
 
     def get_source(self):
         return self.source
