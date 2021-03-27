@@ -11,17 +11,6 @@ def create_mxcell_from_xml(xml_element):
     c.from_xml(xml_element)
     return c
 
-def create_mxcell_vertex(cell_id):
-    c = MxCell()
-    c.set_id(cell_id)
-    c.set_vertex()
-    return c
-
-def create_mxcell_edge(cell_id):
-    c = MxCell()
-    c.set_id(cell_id)
-    c.set_edge()
-    return c
 
 def parse_style_string(s):
     def trysplit(x):
