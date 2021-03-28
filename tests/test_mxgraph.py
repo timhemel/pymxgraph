@@ -54,6 +54,8 @@ def test_read_edge_geometry(cell_store):
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
     geom = MxGeometry.from_xml(cell_store, geom_xml)
+    assert geom.width == None
+    assert geom.height == None
     assert len(geom.points) == 1
     assert geom.points[0].x == 740
     assert geom.points[0].y == 180
@@ -71,6 +73,8 @@ def test_read_edge_geometry_with_source_and_target_points(cell_store):
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
     geom = MxGeometry.from_xml(cell_store, geom_xml)
+    assert geom.width == 50
+    assert geom.height == 50
     assert len(geom.points) == 1
     assert geom.points[0].x == 250
     assert geom.points[0].y == 250
@@ -98,7 +102,11 @@ def test_create_edge_geometry_with_source_and_target_points(cell_store):
     geom = MxEdgeGeometry(points)
     geom.source_point = MxPoint(50,60)
     geom.target_point = MxPoint(70,80)
+    geom.width = 150
+    geom.height = 160
     x = geom.to_xml()
+    assert x.get('width') == '150'
+    assert x.get('height') == '160'
     points = x.findall('Array/mxPoint')
     assert points[0].get('x') == '10'
     assert points[0].get('y') == '20'

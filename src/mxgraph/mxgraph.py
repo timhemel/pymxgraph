@@ -141,6 +141,7 @@ class MxPoint(MxBase):
         return point_xml
 
 class MxGeometry(MxBase):
+    # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxGeometry-js.html
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
@@ -182,11 +183,19 @@ class MxEdgeGeometry(MxGeometry):
         self.points = points
         self.source_point = None
         self.target_point = None
+        self.width = None
+        self.height = None
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
         points = [ MxPoint.from_xml(cell_store, p) for p in xml_element.findall('Array/mxPoint') ]
         geom = MxEdgeGeometry(points)
+        width = xml_element.get('width')
+        if width is not None: 
+            geom.width = int(width)
+        height = xml_element.get('height')
+        if height is not None: 
+            geom.height = int(height)
         sp_xml = xml_element.find("mxPoint[@as='sourcePoint']")
         if sp_xml is not None:
             geom.source_point = MxPoint.from_xml(cell_store, sp_xml)
@@ -199,6 +208,10 @@ class MxEdgeGeometry(MxGeometry):
         geom = ET.Element('mxGeometry')
         geom.set('relative', '1')
         geom.set('as', 'geometry')
+        if self.width is not None:
+            geom.set('width', str(self.width))
+        if self.height is not None:
+            geom.set('height', str(self.height))
         if self.source_point is not None:
             sp_xml = self.source_point.to_xml()
             sp_xml.set('as', 'sourcePoint')
