@@ -379,16 +379,12 @@ class MxEdgeCell(MxNonGroupCell):
 
 
 class MxGraphModel(MxBase):
-    pass
-
-
-class MxGraph(MxBase):
     def __init__(self):
         super().__init__()
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        g = MxGraph()
+        g = MxGraphModel()
         g.attrs = dict(xml_element.items())
         cells = [ MxCell.from_xml(cell_store, x) for x in xml_element.findall('root/mxCell') ]
         return g
@@ -413,14 +409,14 @@ class MxDiagram(MxBase):
         graph_xml = dxml.fromstring(t)
 
         diagram.cell_store = CellStore()
-        diagram.mxgraph = MxGraph.from_xml(diagram.cell_store, graph_xml)
+        diagram.mxgraph_model = MxGraphModel.from_xml(diagram.cell_store, graph_xml)
         return diagram
 
     def to_xml(self):
         diagram_xml = ET.Element('diagram')
         for k,v in self.attrs.items():
             diagram_xml.set(k, v)
-        graph_xml = self.mxgraph.to_xml(self.cell_store)
+        graph_xml = self.mxgraph_model.to_xml(self.cell_store)
         s = dxml.tostring(graph_xml)
         co = zlib.compressobj(wbits=-zlib.MAX_WBITS)
         b = co.compress( bytes(urllib.parse.quote(s), 'ascii'))
