@@ -372,7 +372,7 @@ def test_create_mxgraphmodel_prefix_and_postfix():
     v1.style = g.cells.mxStyle(ellipse=None, x=45)
     v1.geometry = g.cells.mxVertexGeometry(10,20,400,300)
     g_xml = g.to_xml()
-    assert g_xml.findall('root/mxCell')[1].get('id') == f'abc-{v1.cell_id}-xyz'
+    assert g_xml.findall('root/mxCell')[1].get('id') == f'abc-1-xyz'
 
 
 def xtest_read_file():

@@ -37,11 +37,24 @@ class CellStore(MutableMapping):
     def __init__(self):
         self.current_id = 0
         self.cells = {}
+        self.prefix = ''
+        self.postfix = ''
+
+    def __make_id(self, n):
+        s = ''
+        if self.prefix != '':
+            s += self.prefix + '-'
+        s += str(n)
+        if self.postfix != '':
+            s += '-' + self.postfix
+        return s
 
     def __new_id(self):
-        while str(self.current_id) in self.cells:
+        newid = self.__make_id(self.current_id)
+        while newid in self.cells:
             self.current_id += 1
-        return str(self.current_id)
+            newid = self.__make_id(self.current_id)
+        return newid
 
     def __getitem__(self, key):
         return self.cells[key]
@@ -382,6 +395,22 @@ class MxGraphModel(MxBase):
     def __init__(self):
         super().__init__()
         self.cells = CellStore()
+
+    @property
+    def prefix(self):
+        return self.cells.prefix
+
+    @prefix.setter
+    def prefix(self, value):
+        self.cells.prefix = value
+
+    @property
+    def postfix(self):
+        return self.cells.postfix
+
+    @postfix.setter
+    def postfix(self, value):
+        self.cells.postfix = value
 
     @classmethod
     def from_xml(cls, xml_element):
