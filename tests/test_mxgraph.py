@@ -372,7 +372,8 @@ def xtest_read_file():
 
 def main():
     mxfile = MxFile.from_file(sys.stdin)
-    mxfile.to_file(sys.stdout)
+    ET.dump(mxfile.diagram.mxgraph_model.to_xml(mxfile.diagram.cell_store))
+    # mxfile.to_file(sys.stdout)
 
 if __name__=="__main__":
     main()
