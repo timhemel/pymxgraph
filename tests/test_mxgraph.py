@@ -83,9 +83,6 @@ def test_read_edge_geometry_with_source_and_target_points(cell_store):
     assert geom.target_point.x == 450
     assert geom.target_point.y == 400
 
-
-
-
 def test_create_edge_geometry():
     points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
     geom = MxEdgeGeometry(points)
@@ -95,7 +92,6 @@ def test_create_edge_geometry():
     assert points[0].get('y') == '20'
     assert points[1].get('x') == '30'
     assert points[1].get('y') == '40'
-
 
 def test_create_edge_geometry_with_source_and_target_points(cell_store):
     points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
