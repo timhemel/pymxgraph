@@ -119,6 +119,27 @@ class MxStyle(MxBase):
         styles = [ k+'='+str(v)+';' for k,v in self.attrs.items() if v is not None ]
         return "".join(shapes + styles)
 
+class MxPoint(MxBase):
+
+    def __init__(self, x,y):
+        super().__init__()
+        self.x = x
+        self.y = y
+
+    @classmethod
+    def from_xml(cls, cell_store, xml_element):
+        x = int(xml_element.get('x'))
+        y = int(xml_element.get('y'))
+        point = MxPoint(x,y)
+        point.attrs.update(xml_element.items())
+        return point
+
+    def to_xml(self):
+        point_xml = ET.Element('mxPoint')
+        point_xml.set('x', str(self.x))
+        point_xml.set('y', str(self.y))
+        return point_xml
+
 class MxGeometry(MxBase):
 
     @classmethod
@@ -159,21 +180,36 @@ class MxEdgeGeometry(MxGeometry):
     def __init__(self, points):
         super().__init__()
         self.points = points
+        self.source_point = None
+        self.target_point = None
 
     @classmethod
     def from_xml(cls, cell_store, xml_element):
-        return None
+        points = [ MxPoint.from_xml(cell_store, p) for p in xml_element.findall('Array/mxPoint') ]
+        geom = MxEdgeGeometry(points)
+        sp_xml = xml_element.find("mxPoint[@as='sourcePoint']")
+        if sp_xml is not None:
+            geom.source_point = MxPoint.from_xml(cell_store, sp_xml)
+        tp_xml = xml_element.find("mxPoint[@as='targetPoint']")
+        if tp_xml is not None:
+            geom.target_point = MxPoint.from_xml(cell_store, tp_xml)
+        return geom
 
     def to_xml(self):
         geom = ET.Element('mxGeometry')
         geom.set('relative', '1')
         geom.set('as', 'geometry')
+        if self.source_point is not None:
+            sp_xml = self.source_point.to_xml()
+            sp_xml.set('as', 'sourcePoint')
+            geom.append(sp_xml)
+        if self.target_point is not None:
+            sp_xml = self.target_point.to_xml()
+            sp_xml.set('as', 'targetPoint')
+            geom.append(sp_xml)
         array = ET.SubElement(geom, 'Array')
-        # add points
-        for x,y in self.points:
-            point = ET.SubElement(array, 'mxPoint')
-            point.set('x', str(x))
-            point.set('y', str(y))
+        array.set('as','points')
+        array.extend([p.to_xml() for p in self.points])
         return geom
 
 
@@ -333,7 +369,7 @@ class MxGraph(MxBase):
         return g
 
     def to_xml(self, cell_store):
-        g_xml = ET.Element('mxGraph')
+        g_xml = ET.Element('mxGraphModel')
         for k,v in self.attrs.items():
             g_xml.set(k,v)
         root_xml = ET.SubElement(g_xml, 'root')
@@ -355,6 +391,19 @@ class MxDiagram(MxBase):
         diagram.mxgraph = MxGraph.from_xml(diagram.cell_store, graph_xml)
         return diagram
 
+    def to_xml(self):
+        diagram_xml = ET.Element('diagram')
+        for k,v in self.attrs.items():
+            diagram_xml.set(k, v)
+        graph_xml = self.mxgraph.to_xml(self.cell_store)
+        s = dxml.tostring(graph_xml)
+        co = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+        b = co.compress( bytes(urllib.parse.quote(s), 'ascii'))
+        b += co.flush(zlib.Z_FINISH)
+        s = base64.b64encode(b)
+        diagram_xml.text = s.decode('utf-8')
+        return diagram_xml
+
 
 class MxFile(MxBase):
 
@@ -363,24 +412,17 @@ class MxFile(MxBase):
         mxfile = MxFile()
         et = dxml.parse(f)
         root = et.getroot()
-        mxfile.attrs.update(dict(root.items()))   # TODO: dict mixin
-        diagram = MxDiagram.from_xml(root.find("diagram"))
+        mxfile.attrs.update(root.items())   # TODO: dict mixin
+        mxfile.diagram = MxDiagram.from_xml(root.find("diagram"))
         return mxfile
 
     def to_file(self, f):
         # <mxfile host="Electron" modified="2021-03-20T11:18:12.728Z" agent="5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/14.1.8 Chrome/87.0.4280.88 Electron/11.1.1 Safari/537.36" etag="kQo77z5om65T-AUhIzrJ" version="14.1.8" type="device"><diagram id="FSWUdnHGcb4EeTo7y5cW" name="Page-1">
-        s = dxml.tostring(self.graph_xml)
-        co = zlib.compressobj(wbits=-zlib.MAX_WBITS)
-        b = co.compress( bytes(urllib.parse.quote(s), 'ascii'))
-        b += co.flush(zlib.Z_FINISH)
-        s = base64.b64encode(b)
-        mxfile = ET.Element('mxfile')
-        mxfile.set('host','pymxgraph')
-        mxfile.set('type','device')
-        diagram = ET.SubElement(mxfile,'diagram')
-        diagram.set('id','pymx-0000')
-        diagram.set('name','Page-1')
-        diagram.text = s.decode('utf-8')
-        ET.dump(mxfile)
+        diagram_xml = self.diagram.to_xml()
+        mxfile_xml = ET.Element('mxfile')
+        for k,v in self.attrs.items():
+            mxfile_xml.set(k, v)
+        mxfile_xml.append(diagram_xml)
+        ET.dump(mxfile_xml)
         # f.write(s)
 

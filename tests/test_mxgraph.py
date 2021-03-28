@@ -23,7 +23,7 @@ def test_create_mxstyle():
     s = style.to_string()
     assert s == "ellipse;html=1;"
 
-def test_read_geometry(cell_store):
+def test_read_vertex_geometry(cell_store):
     s = '<mxGeometry x="700" y="50" width="120" height="60" as="geometry" />'
     geom_xml = dxml.fromstring(s)
     geom = MxGeometry.from_xml(cell_store, geom_xml)
@@ -44,6 +44,74 @@ def test_create_vertex_geometry():
     assert x.get('y') == '220'
     assert x.get('width') == '120'
     assert x.get('height') == '60'
+
+def test_read_edge_geometry(cell_store):
+    s = """
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="740" y="180"/>
+        </Array>
+      </mxGeometry>"""
+    geom_xml = dxml.fromstring(s)
+    geom = MxGeometry.from_xml(cell_store, geom_xml)
+    assert len(geom.points) == 1
+    assert geom.points[0].x == 740
+    assert geom.points[0].y == 180
+    assert geom.source_point is None
+    assert geom.target_point is None
+
+def test_read_edge_geometry_with_source_and_target_points(cell_store):
+    s = """
+    <mxGeometry width="50" height="50" relative="1" as="geometry">
+        <mxPoint x="400" y="450" as="sourcePoint"/>
+        <mxPoint x="450" y="400" as="targetPoint"/>
+        <Array as="points">
+          <mxPoint x="250" y="250"/>
+        </Array>
+      </mxGeometry>"""
+    geom_xml = dxml.fromstring(s)
+    geom = MxGeometry.from_xml(cell_store, geom_xml)
+    assert len(geom.points) == 1
+    assert geom.points[0].x == 250
+    assert geom.points[0].y == 250
+    assert geom.source_point.x == 400
+    assert geom.source_point.y == 450
+    assert geom.target_point.x == 450
+    assert geom.target_point.y == 400
+
+
+
+
+def test_create_edge_geometry():
+    points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
+    geom = MxEdgeGeometry(points)
+    x = geom.to_xml()
+    points = x.findall('Array/mxPoint')
+    assert points[0].get('x') == '10'
+    assert points[0].get('y') == '20'
+    assert points[1].get('x') == '30'
+    assert points[1].get('y') == '40'
+
+
+def test_create_edge_geometry_with_source_and_target_points(cell_store):
+    points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
+    geom = MxEdgeGeometry(points)
+    geom.source_point = MxPoint(50,60)
+    geom.target_point = MxPoint(70,80)
+    x = geom.to_xml()
+    points = x.findall('Array/mxPoint')
+    assert points[0].get('x') == '10'
+    assert points[0].get('y') == '20'
+    assert points[1].get('x') == '30'
+    assert points[1].get('y') == '40'
+    source_point_xml = x.find("mxPoint[@as='sourcePoint']")
+    target_point_xml = x.find("mxPoint[@as='targetPoint']")
+    assert source_point_xml.get('x') == '50'
+    assert source_point_xml.get('y') == '60'
+    assert target_point_xml.get('x') == '70'
+    assert target_point_xml.get('y') == '80'
+
+
 
 def test_read_root_vertex(cell_store):
     cell_string = """<mxCell id="0" />"""
@@ -147,7 +215,7 @@ def test_create_mxcell_edge(cell_store):
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = MxStyle.from_string(style_string)
     cell.style = style
-    geom = MxEdgeGeometry([(240,310)])
+    geom = MxEdgeGeometry([MxPoint(240,310)])
     cell.geometry = geom
     x = cell.to_xml()
     assert x.get('id') == '42'
@@ -171,7 +239,7 @@ def test_cell_store():
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = cs.mxStyle(edgeStyle='none',curved=1,orthogonalLoop=1,jettySize='auto',html=1)
     edge.style = style
-    geom = cs.mxEdgeGeometry([(240,310)])
+    geom = cs.mxEdgeGeometry([MxPoint(240,310)])
     edge.geometry = geom
     assert source_vertex.parent == parent
     assert edge.parent == parent
@@ -283,7 +351,7 @@ def test_create_mxgraph(cell_store):
     v2.geometry = cell_store.mxVertexGeometry(10,20,400,300)
     v3 = cell_store.mxEdgeCell(parent = cell1, source=v1, target=v2)
     v3.style = cell_store.mxStyle(curve=1)
-    v3.geometry = cell_store.mxEdgeGeometry([(200,10)])
+    v3.geometry = cell_store.mxEdgeGeometry([MxPoint(200,10)])
 
     g_xml = g.to_xml(cell_store)
     assert g_xml.get('pageWidth') == '850'
