@@ -375,14 +375,16 @@ class MxEdgeCell(MxNonGroupCell):
 
 
 class MxGraphModel(MxBase):
+    # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxGraphModel-js.html
     def __init__(self):
         super().__init__()
+        self.cell_store = CellStore()
 
     @classmethod
-    def from_xml(cls, cell_store, xml_element):
+    def from_xml(cls, xml_element):
         g = MxGraphModel()
         g.attrs = dict(xml_element.items())
-        cells = [ MxCell.from_xml(cell_store, x) for x in xml_element.findall('root/mxCell') ]
+        cells = [ MxCell.from_xml(g.cell_store, x) for x in xml_element.findall('root/mxCell') ]
         return g
 
     def to_xml(self, cell_store):
@@ -404,8 +406,7 @@ class MxDiagram(MxBase):
         graph_string = t
         graph_xml = dxml.fromstring(t)
 
-        diagram.cell_store = CellStore()
-        diagram.mxgraph_model = MxGraphModel.from_xml(diagram.cell_store, graph_xml)
+        diagram.mxgraph_model = MxGraphModel.from_xml(graph_xml)
         return diagram
 
     def to_xml(self):

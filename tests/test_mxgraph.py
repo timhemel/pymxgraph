@@ -262,7 +262,7 @@ def test_cell_store_cell_id():
     edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
     assert edge.cell_id not in [ parent.cell_id, source_vertex.cell_id, target_vertex.cell_id ]
 
-def test_read_mxgraph_model(cell_store):
+def test_read_mxgraph_model():
     graph_string = """
     <mxGraphModel dx="1102" dy="825" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
   <root>
@@ -297,12 +297,12 @@ def test_read_mxgraph_model(cell_store):
   </root>
 </mxGraphModel>"""
     graph_xml = dxml.fromstring(graph_string)
-    mx = MxGraphModel.from_xml(cell_store, graph_xml)
+    mx = MxGraphModel.from_xml(graph_xml)
     assert mx['pageWidth'] == '850'
-    assert len(cell_store.items()) == 8
-    assert cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == cell_store['X49CK6sKVQ1RPVU1MZDR-6']
+    assert len(mx.cell_store.items()) == 8
+    assert mx.cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cell_store['X49CK6sKVQ1RPVU1MZDR-6']
 
-def test_read_edge_defined_before_vertex(cell_store):
+def test_read_edge_defined_before_vertex():
     graph_string = """
     <mxGraphModel dx="1102" dy="825" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
   <root>
@@ -337,9 +337,9 @@ def test_read_edge_defined_before_vertex(cell_store):
   </root>
 </mxGraphModel>"""
     graph_xml = dxml.fromstring(graph_string)
-    mx = MxGraphModel.from_xml(cell_store, graph_xml)
-    assert cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].target == cell_store.cells['X49CK6sKVQ1RPVU1MZDR-2']
-    assert cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == cell_store.cells['X49CK6sKVQ1RPVU1MZDR-6']
+    mx = MxGraphModel.from_xml(graph_xml)
+    assert mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].target == mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-2']
+    assert mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-6']
 
 
 def test_create_mxgraph_model(cell_store):
