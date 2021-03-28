@@ -5,6 +5,7 @@ import urllib.parse
 import zlib
 import defusedxml.ElementTree as dxml
 import xml.etree.ElementTree as ET
+from collections.abc import MutableMapping
 
 def create_mxcell_from_xml(xml_element):
     c = MxCell()
@@ -90,13 +91,10 @@ class CellStore:
         return MxEdgeGeometry(points)
 
 
-class MxBase:
+class MxBase(MutableMapping):
 
     def __init__(self):
         self.attrs = {}
-
-    def get(self, key):
-        return self.attrs.get(key)
 
     def __getitem__(self, key):
         return self.attrs[key]
@@ -104,8 +102,14 @@ class MxBase:
     def __setitem__(self, key, value):
         self.attrs[key] = value
 
-    def items(self):
-        return self.attrs.items()
+    def __delitem__(self, key):
+        del self.attrs[key]
+
+    def __iter__(self):
+        return iter(self.attrs)
+
+    def __len__(self):
+        return len(self.attrs)
 
 
 class MxStyle(MxBase):
