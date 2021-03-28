@@ -207,12 +207,12 @@ class MxEdgeGeometry(MxGeometry):
 
     def to_xml(self):
         geom = ET.Element('mxGeometry')
-        geom.set('relative', '1')
-        geom.set('as', 'geometry')
         if self.width is not None:
             geom.set('width', str(self.width))
         if self.height is not None:
             geom.set('height', str(self.height))
+        geom.set('relative', '1')
+        geom.set('as', 'geometry')
         if self.source_point is not None:
             sp_xml = self.source_point.to_xml()
             sp_xml.set('as', 'sourcePoint')
@@ -225,7 +225,6 @@ class MxEdgeGeometry(MxGeometry):
         array.set('as','points')
         array.extend([p.to_xml() for p in self.points])
         return geom
-
 
 class MxCell(MxBase):
 
