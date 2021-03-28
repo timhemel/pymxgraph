@@ -391,12 +391,12 @@ class MxGraphModel(MxBase):
             g.cells.add_cell(MxCell.from_xml(g.cells, x))
         return g
 
-    def to_xml(self, cell_store):
+    def to_xml(self):
         g_xml = ET.Element('mxGraphModel')
         for k,v in self.attrs.items():
             g_xml.set(k,v)
         root_xml = ET.SubElement(g_xml, 'root')
-        root_xml.extend([c.to_xml() for c in cell_store.cells.values()])
+        root_xml.extend([c.to_xml() for c in self.cells.values()])
         return g_xml
 
 

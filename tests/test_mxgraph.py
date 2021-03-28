@@ -342,26 +342,37 @@ def test_read_edge_defined_before_vertex():
     assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cells['X49CK6sKVQ1RPVU1MZDR-6']
 
 
-def test_create_mxgraph_model(cell_store):
+def test_create_mxgraph_model():
     g = MxGraphModel()
     g['pageWidth'] = '850'
-    cell0 = cell_store.mxGroupCell()
-    cell1 = cell_store.mxGroupCell(parent = cell0)
-    v1 = cell_store.mxVertexCell(parent = cell1)
-    v1.style = cell_store.mxStyle(ellipse=None, x=45)
-    v1.geometry = cell_store.mxVertexGeometry(10,20,400,300)
-    v2 = cell_store.mxVertexCell(parent = cell1)
-    v2.style = cell_store.mxStyle(ellipse=None, x=45)
-    v2.geometry = cell_store.mxVertexGeometry(10,20,400,300)
-    v3 = cell_store.mxEdgeCell(parent = cell1, source=v1, target=v2)
-    v3.style = cell_store.mxStyle(curve=1)
-    v3.geometry = cell_store.mxEdgeGeometry([MxPoint(200,10)])
+    cell0 = g.cells.mxGroupCell()
+    cell1 = g.cells.mxGroupCell(parent = cell0)
+    v1 = g.cells.mxVertexCell(parent = cell1)
+    v1.style = g.cells.mxStyle(ellipse=None, x=45)
+    v1.geometry = g.cells.mxVertexGeometry(10,20,400,300)
+    v2 = g.cells.mxVertexCell(parent = cell1)
+    v2.style = g.cells.mxStyle(ellipse=None, x=45)
+    v2.geometry = g.cells.mxVertexGeometry(10,20,400,300)
+    v3 = g.cells.mxEdgeCell(parent = cell1, source=v1, target=v2)
+    v3.style = g.cells.mxStyle(curve=1)
+    v3.geometry = g.cells.mxEdgeGeometry([MxPoint(200,10)])
 
-    g_xml = g.to_xml(cell_store)
+    g_xml = g.to_xml()
     assert g_xml.get('pageWidth') == '850'
     cells_xml = g_xml.findall('root/mxCell')
     assert len(cells_xml) == 5
     assert cells_xml[4].get('source') == v3.source.cell_id
+
+def test_create_mxgraphmodel_prefix_and_postfix():
+    g = MxGraphModel()
+    g.prefix="abc"
+    g.postfix="xyz"
+    cell0 = g.cells.mxGroupCell()
+    v1 = g.cells.mxVertexCell(parent = cell0)
+    v1.style = g.cells.mxStyle(ellipse=None, x=45)
+    v1.geometry = g.cells.mxVertexGeometry(10,20,400,300)
+    g_xml = g.to_xml()
+    assert g_xml.findall('root/mxCell')[1].get('id') == f'abc-{v1.cell_id}-xyz'
 
 
 def xtest_read_file():
