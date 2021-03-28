@@ -299,8 +299,8 @@ def test_read_mxgraph_model():
     graph_xml = dxml.fromstring(graph_string)
     mx = MxGraphModel.from_xml(graph_xml)
     assert mx['pageWidth'] == '850'
-    assert len(mx.cell_store.items()) == 8
-    assert mx.cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cell_store['X49CK6sKVQ1RPVU1MZDR-6']
+    assert len(mx.cells) == 8
+    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cells['X49CK6sKVQ1RPVU1MZDR-6']
 
 def test_read_edge_defined_before_vertex():
     graph_string = """
@@ -338,8 +338,8 @@ def test_read_edge_defined_before_vertex():
 </mxGraphModel>"""
     graph_xml = dxml.fromstring(graph_string)
     mx = MxGraphModel.from_xml(graph_xml)
-    assert mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].target == mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-2']
-    assert mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cell_store.cells['X49CK6sKVQ1RPVU1MZDR-6']
+    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].target == mx.cells['X49CK6sKVQ1RPVU1MZDR-2']
+    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cells['X49CK6sKVQ1RPVU1MZDR-6']
 
 
 def test_create_mxgraph_model(cell_store):

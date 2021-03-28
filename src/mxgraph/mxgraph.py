@@ -32,7 +32,7 @@ def parse_style_string(s):
     kvs = [ trysplit(x) for x in l ]
     return dict(kvs)
 
-class CellStore:
+class CellStore(MutableMapping):
 
     def __init__(self):
         self.current_id = 0
@@ -43,17 +43,20 @@ class CellStore:
             self.current_id += 1
         return str(self.current_id)
 
-    def get(self, key):
-        return self.cells.get(key)
-
     def __getitem__(self, key):
         return self.cells[key]
 
     def __setitem__(self, key, value):
         self.cells[key] = value
 
-    def items(self):
-        return self.cells.items()
+    def __delitem__(self, key):
+        del self.cells[key]
+
+    def __iter__(self):
+        return iter(self.cells)
+
+    def __len__(self):
+        return len(self.cells)
 
     def add_cell(self, cell):
         self.cells[cell.cell_id] = cell
@@ -263,7 +266,6 @@ class MxCell(MxBase):
         cell.cell_id = xml_element.get('id')
         cell._parent_id = xml_element.get('parent')
         cell.set_attributes_from_xml(cell_store, xml_element)
-        cell_store.add_cell(cell)
         return cell
 
     def set_attributes_from_xml(self, cell_store, xml_element):
@@ -376,15 +378,17 @@ class MxEdgeCell(MxNonGroupCell):
 
 class MxGraphModel(MxBase):
     # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxGraphModel-js.html
+
     def __init__(self):
         super().__init__()
-        self.cell_store = CellStore()
+        self.cells = CellStore()
 
     @classmethod
     def from_xml(cls, xml_element):
         g = MxGraphModel()
         g.attrs = dict(xml_element.items())
-        cells = [ MxCell.from_xml(g.cell_store, x) for x in xml_element.findall('root/mxCell') ]
+        for x in xml_element.findall('root/mxCell'):
+            g.cells.add_cell(MxCell.from_xml(g.cells, x))
         return g
 
     def to_xml(self, cell_store):
@@ -394,6 +398,7 @@ class MxGraphModel(MxBase):
         root_xml = ET.SubElement(g_xml, 'root')
         root_xml.extend([c.to_xml() for c in cell_store.cells.values()])
         return g_xml
+
 
 class MxDiagram(MxBase):
 
