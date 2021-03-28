@@ -354,12 +354,8 @@ class MxEdgeCell(MxNonGroupCell):
     @classmethod
     def from_xml(cls, cell_store, xml_element):
         cell = MxEdgeCell(cell_store, None)
-        # source = cell_store[xml_element.get('source')]
         cell._source_id = xml_element.get('source')
-        # cell.source = None
         cell._target_id = xml_element.get('target')
-        # target = cell_store[xml_element.get('target')]
-        # cell.target = None
         return cell
 
     def to_xml(self):
