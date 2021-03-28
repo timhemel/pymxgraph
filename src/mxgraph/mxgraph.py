@@ -11,6 +11,11 @@ def create_mxcell_from_xml(xml_element):
     c.from_xml(xml_element)
     return c
 
+def int_or_none(a):
+    if a is None:
+        return a
+    return int(a)
+
 
 def parse_style_string(s):
     def trysplit(x):
@@ -162,10 +167,10 @@ class MxVertexGeometry(MxGeometry):
     @classmethod
     def from_xml(cls, cell_store, xml_element):
         return MxVertexGeometry(
-                int(xml_element.get('x')),
-                int(xml_element.get('y')),
-                int(xml_element.get('width')),
-                int(xml_element.get('height')))
+                int_or_none(xml_element.get('x')),
+                int_or_none(xml_element.get('y')),
+                int_or_none(xml_element.get('width')),
+                int_or_none(xml_element.get('height')))
 
     def to_xml(self):
         geom = ET.Element('mxGeometry')
@@ -190,12 +195,8 @@ class MxEdgeGeometry(MxGeometry):
     def from_xml(cls, cell_store, xml_element):
         points = [ MxPoint.from_xml(cell_store, p) for p in xml_element.findall('Array/mxPoint') ]
         geom = MxEdgeGeometry(points)
-        width = xml_element.get('width')
-        if width is not None: 
-            geom.width = int(width)
-        height = xml_element.get('height')
-        if height is not None: 
-            geom.height = int(height)
+        geom.width = int_or_none(xml_element.get('width'))
+        geom.height = int_or_none(xml_element.get('height'))
         sp_xml = xml_element.find("mxPoint[@as='sourcePoint']")
         if sp_xml is not None:
             geom.source_point = MxPoint.from_xml(cell_store, sp_xml)
@@ -258,11 +259,6 @@ class MxCell(MxBase):
             cell = MxGroupCell.from_xml(cell_store, xml_element)
         cell.cell_id = xml_element.get('id')
         cell._parent_id = xml_element.get('parent')
-        # if parent_id:
-        #    cell.parent = cell_store[parent_id]
-        # else:
-        #    cell.parent = None
-        # cell.parent = None
         cell.set_attributes_from_xml(cell_store, xml_element)
         cell_store.add_cell(cell)
         return cell
@@ -296,14 +292,11 @@ class MxNonGroupCell(MxCell):
 
     def set_attributes_from_xml(self, cell_store, xml_element):
         super().set_attributes_from_xml(cell_store, xml_element)
-        self.geometry = MxGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
         self.style = MxStyle.from_string(self.attrs.get('style',''))
 
     def to_xml(self):
         cell_xml = super().to_xml()
         cell_xml.set('style', self.style.to_string())
-        geom_xml = self.geometry.to_xml()
-        cell_xml.append(geom_xml)
         return cell_xml
 
 class MxVertexCell(MxNonGroupCell):
@@ -316,6 +309,16 @@ class MxVertexCell(MxNonGroupCell):
     def from_xml(cls, cell_store, xml_element):
         cell = MxVertexCell(cell_store, None)
         return cell
+
+    def to_xml(self):
+        cell_xml = super().to_xml()
+        geom_xml = self.geometry.to_xml()
+        cell_xml.append(geom_xml)
+        return cell_xml
+
+    def set_attributes_from_xml(self, cell_store, xml_element):
+        super().set_attributes_from_xml(cell_store, xml_element)
+        self.geometry = MxVertexGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
 
     def is_vertex(self):
         return True
@@ -360,7 +363,13 @@ class MxEdgeCell(MxNonGroupCell):
         cell_xml = super().to_xml()
         cell_xml.set('source', self.source.cell_id)
         cell_xml.set('target', self.target.cell_id)
+        geom_xml = self.geometry.to_xml()
+        cell_xml.append(geom_xml)
         return cell_xml
+
+    def set_attributes_from_xml(self, cell_store, xml_element):
+        super().set_attributes_from_xml(cell_store, xml_element)
+        self.geometry = MxEdgeGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
 
     def is_edge(self):
         return True

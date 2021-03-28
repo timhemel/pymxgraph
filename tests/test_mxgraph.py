@@ -26,7 +26,7 @@ def test_create_mxstyle():
 def test_read_vertex_geometry(cell_store):
     s = '<mxGeometry x="700" y="50" width="120" height="60" as="geometry" />'
     geom_xml = dxml.fromstring(s)
-    geom = MxGeometry.from_xml(cell_store, geom_xml)
+    geom = MxVertexGeometry.from_xml(cell_store, geom_xml)
     assert geom.x == 700
     assert geom.y == 50
     assert geom.width == 120
@@ -53,7 +53,7 @@ def test_read_edge_geometry(cell_store):
         </Array>
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
-    geom = MxGeometry.from_xml(cell_store, geom_xml)
+    geom = MxEdgeGeometry.from_xml(cell_store, geom_xml)
     assert geom.width == None
     assert geom.height == None
     assert len(geom.points) == 1
@@ -72,7 +72,7 @@ def test_read_edge_geometry_with_source_and_target_points(cell_store):
         </Array>
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
-    geom = MxGeometry.from_xml(cell_store, geom_xml)
+    geom = MxEdgeGeometry.from_xml(cell_store, geom_xml)
     assert geom.width == 50
     assert geom.height == 50
     assert len(geom.points) == 1
