@@ -33,6 +33,7 @@ def parse_style_string(s):
     return dict(kvs)
 
 class CellStore(MutableMapping):
+    """Keeps track of cells in a graph. The store will give every edge a unique id."""
 
     def __init__(self):
         self.current_id = 0
@@ -49,7 +50,8 @@ class CellStore(MutableMapping):
             s += '-' + self.postfix
         return s
 
-    def __new_id(self):
+    def new_id(self):
+        """Return a new identifier that is not used yet."""
         newid = self.__make_id(self.current_id)
         while newid in self.cells:
             self.current_id += 1
@@ -72,39 +74,31 @@ class CellStore(MutableMapping):
         return len(self.cells)
 
     def add_cell(self, cell):
+        """Adds the cell cell to the store. It is stored under its cell_id."""
         self.cells[cell.cell_id] = cell
 
     def mxGroupCell(self, parent=None):
-        cell_id = self.__new_id()
+        cell_id = self.new_id()
         cell = MxGroupCell(self, cell_id)
         cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxVertexCell(self, parent=None):
-        cell_id = self.__new_id()
+        cell_id = self.new_id()
         cell = MxVertexCell(self, cell_id)
         cell.parent = parent
         self.add_cell(cell)
         return cell
 
     def mxEdgeCell(self, parent=None, source=None, target=None):
-        cell_id = self.__new_id()
+        cell_id = self.new_id()
         cell = MxEdgeCell(self, cell_id)
         cell.parent = parent
         cell.source = source
         cell.target = target
         self.add_cell(cell)
         return cell
-
-    def mxStyle(self, **kwargs):
-        return MxStyle(**kwargs)
-
-    def mxVertexGeometry(self, x, y, width, height):
-        return MxVertexGeometry(x, y, width, height)
-
-    def mxEdgeGeometry(self, points):
-        return MxEdgeGeometry(points)
 
 
 class MxBase(MutableMapping):
@@ -168,8 +162,62 @@ class MxPoint(MxBase):
 class MxGeometry(MxBase):
     # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxGeometry-js.html
 
+    def __init__(self, x=None, y=None, width=None, height=None, relative=False):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.relative = relative
+        self.points = []
+        self.source_point = None
+        self.target_point = None
+
     @classmethod
     def from_xml(cls, cell_store, xml_element):
+        geom = MxGeometry(
+                int_or_none(xml_element.get('x')),
+                int_or_none(xml_element.get('y')),
+                int_or_none(xml_element.get('width')),
+                int_or_none(xml_element.get('height')),
+                xml_element.get('relative') == '1')
+        points = [ MxPoint.from_xml(cell_store, p) for p in xml_element.findall('Array/mxPoint') ]
+        geom.points = points
+        sp_xml = xml_element.find("mxPoint[@as='sourcePoint']")
+        if sp_xml is not None:
+            geom.source_point = MxPoint.from_xml(cell_store, sp_xml)
+        tp_xml = xml_element.find("mxPoint[@as='targetPoint']")
+        if tp_xml is not None:
+            geom.target_point = MxPoint.from_xml(cell_store, tp_xml)
+        return geom
+
+
+    def to_xml(self):
+        geom = ET.Element('mxGeometry')
+        if self.x: geom.set('x', str(self.x))
+        if self.y: geom.set('y', str(self.y))
+        if self.width: geom.set('width', str(self.width))
+        if self.height: geom.set('height', str(self.height))
+        if self.relative: geom.set('relative', '1')
+        geom.set('as', 'geometry')
+        if self.source_point is not None:
+            sp_xml = self.source_point.to_xml()
+            sp_xml.set('as', 'sourcePoint')
+            geom.append(sp_xml)
+        if self.target_point is not None:
+            sp_xml = self.target_point.to_xml()
+            sp_xml.set('as', 'targetPoint')
+            geom.append(sp_xml)
+        if self.points:
+            array = ET.SubElement(geom, 'Array')
+            array.set('as','points')
+            array.extend([p.to_xml() for p in self.points])
+        return geom
+
+
+
+    @classmethod
+    def old_from_xml(cls, cell_store, xml_element):
         if set(['x','y','width','height']).issubset(xml_element.keys()):
             return MxVertexGeometry.from_xml(cell_store, xml_element)
         else:
@@ -177,22 +225,23 @@ class MxGeometry(MxBase):
 
 class MxVertexGeometry(MxGeometry):
 
-    def __init__(self, x, y, width, height):
+    def old__init__(self, x, y, width, height, relative=False):
         super().__init__()
         self.x = x
         self.y = y
         self.width = width
         self.height = height
+        self.relative = relative
 
     @classmethod
-    def from_xml(cls, cell_store, xml_element):
+    def old_from_xml(cls, cell_store, xml_element):
         return MxVertexGeometry(
                 int_or_none(xml_element.get('x')),
                 int_or_none(xml_element.get('y')),
                 int_or_none(xml_element.get('width')),
                 int_or_none(xml_element.get('height')))
 
-    def to_xml(self):
+    def old_to_xml(self):
         geom = ET.Element('mxGeometry')
         geom.set('x', str(self.x))
         geom.set('y', str(self.y))
@@ -203,7 +252,7 @@ class MxVertexGeometry(MxGeometry):
 
 class MxEdgeGeometry(MxGeometry):
 
-    def __init__(self, points):
+    def old__init__(self, points):
         super().__init__()
         self.points = points
         self.source_point = None
@@ -212,7 +261,7 @@ class MxEdgeGeometry(MxGeometry):
         self.height = None
 
     @classmethod
-    def from_xml(cls, cell_store, xml_element):
+    def old_from_xml(cls, cell_store, xml_element):
         points = [ MxPoint.from_xml(cell_store, p) for p in xml_element.findall('Array/mxPoint') ]
         geom = MxEdgeGeometry(points)
         geom.width = int_or_none(xml_element.get('width'))
@@ -225,7 +274,7 @@ class MxEdgeGeometry(MxGeometry):
             geom.target_point = MxPoint.from_xml(cell_store, tp_xml)
         return geom
 
-    def to_xml(self):
+    def old_to_xml(self):
         geom = ET.Element('mxGeometry')
         if self.width is not None:
             geom.set('width', str(self.width))
@@ -412,6 +461,11 @@ class MxGraphModel(MxBase):
     def postfix(self, value):
         self.cells.postfix = value
 
+    def add(self, parent, cell):
+        """add the cell to the parent."""
+        cell.parent = parent
+        self.cells.add_cell(cell)
+
     @classmethod
     def from_xml(cls, xml_element):
         g = MxGraphModel()
@@ -477,4 +531,62 @@ class MxFile(MxBase):
         mxfile_xml.append(diagram_xml)
         ET.dump(mxfile_xml)
         # f.write(s)
+
+class MxGraph:
+    def __init__(self):
+        self.mxgraph_model = MxGraphModel()
+        self.cells = self.mxgraph_model.cells
+        self.root = MxGroupCell(self.cells, "0")
+        self.mxgraph_model.add(None, self.root)
+
+    def _get_parent(self, parent):
+        if parent is None:
+            return self.root
+        return parent
+
+    def _get_cell_id(self, cell_id):
+        if cell_id is None:
+            return self.cells.new_id()
+
+    def create_group_cell(self, parent = None, cell_id = None):
+        parent = self._get_parent(parent)
+        cell_id = self._get_cell_id(cell_id)
+        cell = MxGroupCell(self.cells, cell_id)
+        self.mxgraph_model.add(parent, cell)
+        return cell
+
+    def insert_vertex(self, parent = None, cell_id = None, value = None, x = None, y = None, width = None, height = None, style = {}, relative = False):
+        """https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertVertex"""
+        parent = self._get_parent(parent)
+        cell_id = self._get_cell_id(cell_id)
+        cell = MxVertexCell(self.cells, cell_id)
+        cell.style = style
+        cell.geometry = MxGeometry(x=x, y=y, width=width, height=height, relative=relative)
+        self.mxgraph_model.add(parent, cell)
+        return cell
+
+    def insert_edge(self, parent=None, cell_id=None, value=None, source=None, target=None, style={}):
+        """https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertEdge"""
+        parent = self._get_parent(parent)
+        cell_id = self._get_cell_id(cell_id)
+        cell = MxEdgeCell(self.cells, cell_id)
+        if not isinstance(source, MxCell):
+            raise Exception("invalid source cell")
+        if not isinstance(target, MxCell):
+            raise Exception("invalid target cell")
+        cell.geometry = MxGeometry(relative=True)
+        cell.source = source
+        cell.target = target
+        cell.style = style
+        self.mxgraph_model.add(parent, cell)
+        return cell
+
+    def add_edge_geometry(self, edge, points):
+        edge.geometry.points = [MxPoint(*p) for p in points]
+
+    def set_source_point(self, edge, point):
+        edge.geometry.source_point = MxPoint(*point)
+
+    def set_target_point(self, edge, point):
+        edge.geometry.target_point = MxPoint(*point)
 

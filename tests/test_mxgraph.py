@@ -26,7 +26,7 @@ def test_create_mxstyle():
 def test_read_vertex_geometry(cell_store):
     s = '<mxGeometry x="700" y="50" width="120" height="60" as="geometry" />'
     geom_xml = dxml.fromstring(s)
-    geom = MxVertexGeometry.from_xml(cell_store, geom_xml)
+    geom = MxGeometry.from_xml(cell_store, geom_xml)
     assert geom.x == 700
     assert geom.y == 50
     assert geom.width == 120
@@ -34,7 +34,7 @@ def test_read_vertex_geometry(cell_store):
 
 
 def test_create_vertex_geometry():
-    geom = MxVertexGeometry(50,220,120,60)
+    geom = MxGeometry(x=50,y=220,width=120,height=60)
     assert geom.x == 50
     assert geom.y == 220
     assert geom.width == 120
@@ -53,7 +53,7 @@ def test_read_edge_geometry(cell_store):
         </Array>
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
-    geom = MxEdgeGeometry.from_xml(cell_store, geom_xml)
+    geom = MxGeometry.from_xml(cell_store, geom_xml)
     assert geom.width == None
     assert geom.height == None
     assert len(geom.points) == 1
@@ -72,7 +72,7 @@ def test_read_edge_geometry_with_source_and_target_points(cell_store):
         </Array>
       </mxGeometry>"""
     geom_xml = dxml.fromstring(s)
-    geom = MxEdgeGeometry.from_xml(cell_store, geom_xml)
+    geom = MxGeometry.from_xml(cell_store, geom_xml)
     assert geom.width == 50
     assert geom.height == 50
     assert len(geom.points) == 1
@@ -84,8 +84,8 @@ def test_read_edge_geometry_with_source_and_target_points(cell_store):
     assert geom.target_point.y == 400
 
 def test_create_edge_geometry():
-    points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
-    geom = MxEdgeGeometry(points)
+    geom = MxGeometry(relative=True)
+    geom.points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
     x = geom.to_xml()
     points = x.findall('Array/mxPoint')
     assert points[0].get('x') == '10'
@@ -94,8 +94,8 @@ def test_create_edge_geometry():
     assert points[1].get('y') == '40'
 
 def test_create_edge_geometry_with_source_and_target_points(cell_store):
-    points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
-    geom = MxEdgeGeometry(points)
+    geom = MxGeometry(relative=True)
+    geom.points = [ MxPoint(x,y) for x,y in [ (10,20), (30,40) ] ]
     geom.source_point = MxPoint(50,60)
     geom.target_point = MxPoint(70,80)
     geom.width = 150
@@ -154,7 +154,7 @@ def test_create_mxcell_vertex(cell_store):
     style_string = "ellipse;html=1;"
     style = MxStyle.from_string(style_string)
     cell.style = style
-    geom = MxVertexGeometry(300,400,100,50)
+    geom = MxGeometry(x=300,y=400,width=100,height=50)
     cell.geometry = geom
     x = cell.to_xml()
     assert x.get('id') == '42'
@@ -219,7 +219,8 @@ def test_create_mxcell_edge(cell_store):
     style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
     style = MxStyle.from_string(style_string)
     cell.style = style
-    geom = MxEdgeGeometry([MxPoint(240,310)])
+    geom = MxGeometry(relative=True)
+    geom.points = [MxPoint(240,310)]
     cell.geometry = geom
     x = cell.to_xml()
     assert x.get('id') == '42'
@@ -236,19 +237,15 @@ def test_create_mxcell_edge(cell_store):
 
 def test_cell_store():
     cs = CellStore()
-    parent = cs.mxGroupCell()
-    source_vertex = cs.mxVertexCell(parent = parent)
-    target_vertex = cs.mxVertexCell(parent = parent)
-    edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
-    style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
-    style = cs.mxStyle(edgeStyle='none',curved=1,orthogonalLoop=1,jettySize='auto',html=1)
-    edge.style = style
-    geom = cs.mxEdgeGeometry([MxPoint(240,310)])
-    edge.geometry = geom
-    assert source_vertex.parent == parent
-    assert edge.parent == parent
-    assert edge.source == source_vertex
-    assert edge.target == target_vertex
+    parent = MxGroupCell(cs, '0')
+    cs.add_cell(parent)
+    source_vertex = MxVertexCell(cs, cs.new_id())
+    cs.add_cell(source_vertex)
+    target_vertex = MxVertexCell(cs, cs.new_id())
+    cs.add_cell(target_vertex)
+    edge = MxEdgeCell(cs, cs.new_id())
+    cs.add_cell(edge)
+
     assert set(cs.cells.keys()) == set([parent.cell_id, source_vertex.cell_id, target_vertex.cell_id, edge.cell_id])
 
 def test_cell_store_cell_id():
@@ -261,6 +258,8 @@ def test_cell_store_cell_id():
     cs.add_cell(target_vertex)
     edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
     assert edge.cell_id not in [ parent.cell_id, source_vertex.cell_id, target_vertex.cell_id ]
+
+
 
 def test_read_mxgraph_model():
     graph_string = """
@@ -343,36 +342,93 @@ def test_read_edge_defined_before_vertex():
 
 
 def test_create_mxgraph_model():
-    g = MxGraphModel()
-    g['pageWidth'] = '850'
-    cell0 = g.cells.mxGroupCell()
-    cell1 = g.cells.mxGroupCell(parent = cell0)
-    v1 = g.cells.mxVertexCell(parent = cell1)
-    v1.style = g.cells.mxStyle(ellipse=None, x=45)
-    v1.geometry = g.cells.mxVertexGeometry(10,20,400,300)
-    v2 = g.cells.mxVertexCell(parent = cell1)
-    v2.style = g.cells.mxStyle(ellipse=None, x=45)
-    v2.geometry = g.cells.mxVertexGeometry(10,20,400,300)
-    v3 = g.cells.mxEdgeCell(parent = cell1, source=v1, target=v2)
-    v3.style = g.cells.mxStyle(curve=1)
-    v3.geometry = g.cells.mxEdgeGeometry([MxPoint(200,10)])
+    gm = MxGraphModel()
+    gm['pageWidth'] = '850'
+    cell0 = gm.cells.mxGroupCell()
+    cell1 = gm.cells.mxGroupCell(parent = cell0)
+    v1 = gm.cells.mxVertexCell(parent = cell1)
+    v1.style = MxStyle(ellipse=None, x=45)
+    v1.geometry = MxGeometry(x=10,y=20,width=400,height=300)
+    v2 = gm.cells.mxVertexCell(parent = cell1)
+    v2.style = MxStyle(ellipse=None, x=45)
+    v2.geometry = MxGeometry(x=10,y=20,width=400,height=300)
+    v3 = gm.cells.mxEdgeCell(parent = cell1, source=v1, target=v2)
+    v3.style = MxStyle(curve=1)
+    v3.geometry = MxGeometry(relative=True)
+    v3.geometry.points = [MxPoint(200,10)]
 
-    g_xml = g.to_xml()
-    assert g_xml.get('pageWidth') == '850'
-    cells_xml = g_xml.findall('root/mxCell')
+    gm_xml = gm.to_xml()
+    assert gm_xml.get('pageWidth') == '850'
+    cells_xml = gm_xml.findall('root/mxCell')
     assert len(cells_xml) == 5
     assert cells_xml[4].get('source') == v3.source.cell_id
 
 def test_create_mxgraphmodel_prefix_and_postfix():
-    g = MxGraphModel()
-    g.prefix="abc"
-    g.postfix="xyz"
-    cell0 = g.cells.mxGroupCell()
-    v1 = g.cells.mxVertexCell(parent = cell0)
-    v1.style = g.cells.mxStyle(ellipse=None, x=45)
-    v1.geometry = g.cells.mxVertexGeometry(10,20,400,300)
-    g_xml = g.to_xml()
-    assert g_xml.findall('root/mxCell')[1].get('id') == f'abc-1-xyz'
+    gm = MxGraphModel()
+    gm.prefix="abc"
+    gm.postfix="xyz"
+    cell0 = gm.cells.mxGroupCell()
+    v1 = gm.cells.mxVertexCell(parent = cell0)
+    v1.style = MxStyle(ellipse=None, x=45)
+    v1.geometry = MxGeometry(x=10,y=20,width=400,height=300)
+    gm_xml = gm.to_xml()
+    assert gm_xml.findall('root/mxCell')[1].get('id') == f'abc-1-xyz'
+
+def test_mxgraph_add_to_default_root():
+    g = MxGraph()
+    parent = g.create_group_cell()
+    assert parent.parent == g.root
+
+def test_mxgraph_insert_vertex():
+    g = MxGraph()
+    parent = g.create_group_cell()
+    style = { 'ellipse': None, 'whiteSpace': 'wrap', 'html': '1', 'aspect': 'fixed' }
+    source_vertex = g.insert_vertex(parent = parent, value="Hello!", x=100, y=200, width=400, height=300, style=style, relative=False)
+
+    assert source_vertex.parent == parent
+    assert source_vertex.geometry.x == 100
+    assert source_vertex.geometry.width == 400
+    assert source_vertex.geometry.relative == False
+    assert source_vertex.style == style
+
+def test_mxgraph_insert_edge():
+    g = MxGraph()
+    parent = g.create_group_cell()
+    style = { 'ellipse': None, 'whiteSpace': 'wrap', 'html': '1', 'aspect': 'fixed' }
+    source_vertex = g.insert_vertex(parent=parent, value="Hello!", x=100, y=200, width=400, height=300, style=style, relative=False)
+    target_vertex = g.insert_vertex(parent=parent, value="Goodbye!", x=400, y=200, width=400, height=300, style=style, relative=False)
+    edge_style = { 'edgeStyle': 'none', 'curved': '1', 'orthogonalLoop': '1', 'jettySize': 'auto', 'html': '1' }
+    edge = g.insert_edge(parent=parent, source=source_vertex, target=target_vertex, style=edge_style)
+    g.add_edge_geometry(edge, [(10,20),(30,40)])
+    g.set_source_point(edge, (50,60))
+    g.set_target_point(edge, (70,80))
+    assert edge.source == source_vertex
+    assert edge.target == target_vertex
+    assert edge.parent == parent
+    assert edge.style == edge_style
+    assert len(edge.geometry.points) == 2
+    assert edge.geometry.points[0].x == 10
+    assert edge.geometry.points[0].y == 20
+    assert edge.geometry.points[1].x == 30
+    assert edge.geometry.points[1].y == 40
+    assert edge.geometry.source_point.x == 50
+    assert edge.geometry.source_point.y == 60
+    assert edge.geometry.target_point.x == 70
+    assert edge.geometry.target_point.y == 80
+
+
+def bla():
+    edge = cs.mxEdgeCell(parent = parent, source = source_vertex, target = target_vertex)
+    style_string = "edgeStyle=none;curved=1;orthogonalLoop=1;jettySize=auto;html=1;"
+    style = MxStyle(edgeStyle='none',curved=1,orthogonalLoop=1,jettySize='auto',html=1)
+    edge.style = style
+    edge.geometry = MxGeometry(relative=True)
+    edge.geometry.points = [MxPoint(240,310)]
+    assert source_vertex.parent == parent
+    assert edge.parent == parent
+    assert edge.source == source_vertex
+    assert edge.target == target_vertex
+    assert set(cs.cells.keys()) == set([parent.cell_id, source_vertex.cell_id, target_vertex.cell_id, edge.cell_id])
 
 
 def xtest_read_file():
