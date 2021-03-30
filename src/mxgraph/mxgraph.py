@@ -7,11 +7,6 @@ import defusedxml.ElementTree as dxml
 import xml.etree.ElementTree as ET
 from collections.abc import MutableMapping
 
-def create_mxcell_from_xml(xml_element):
-    c = MxCell()
-    c.from_xml(xml_element)
-    return c
-
 def int_or_none(a):
     if a is None:
         return a
