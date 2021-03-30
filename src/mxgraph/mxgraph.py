@@ -77,28 +77,6 @@ class CellStore(MutableMapping):
         """Adds the cell cell to the store. It is stored under its cell_id."""
         self.cells[cell.cell_id] = cell
 
-    def mxGroupCell(self, parent=None):
-        cell_id = self.new_id()
-        cell = MxGroupCell(self, cell_id)
-        cell.parent = parent
-        self.add_cell(cell)
-        return cell
-
-    def mxVertexCell(self, parent=None):
-        cell_id = self.new_id()
-        cell = MxVertexCell(self, cell_id)
-        cell.parent = parent
-        self.add_cell(cell)
-        return cell
-
-    def mxEdgeCell(self, parent=None, source=None, target=None):
-        cell_id = self.new_id()
-        cell = MxEdgeCell(self, cell_id)
-        cell.parent = parent
-        cell.source = source
-        cell.target = target
-        self.add_cell(cell)
-        return cell
 
 
 class MxBase(MutableMapping):
@@ -297,11 +275,21 @@ class MxEdgeGeometry(MxGeometry):
 
 class MxCell(MxBase):
 
-    def __init__(self, cell_store, cell_id):
+    def __init__(self, cell_store, cell_id, vertex=False, edge=False, **kwargs):
+        super().__init__()
         self.cell_store = cell_store
         self.cell_id = cell_id
         self._parent_id = None
-        super().__init__()
+        # self.value = None
+        self.geometry = None
+        self.style = None
+        self.vertex = vertex
+        self.edge = edge
+        # self.connectable = False
+        # self.collapsed = False
+        self._source_id = None
+        self._target_id = None
+        self.attrs.update(kwargs)
 
     @property
     def parent(self):
@@ -319,15 +307,27 @@ class MxCell(MxBase):
     @classmethod
     def from_xml(cls, cell_store, xml_element):
         # https://jgraph.github.io/mxgraph/docs/js-api/files/model/mxCell-js.html
-        if xml_element.get('vertex'):
+        if False and xml_element.get('vertex'):
             cell = MxVertexCell.from_xml(cell_store, xml_element)
-        elif xml_element.get('edge'):
+        elif False and xml_element.get('edge'):
             cell = MxEdgeCell.from_xml(cell_store, xml_element)
         else:
-            cell = MxGroupCell.from_xml(cell_store, xml_element)
+            cell = MxCell(cell_store, xml_element.get('id'))
         cell.cell_id = xml_element.get('id')
         cell._parent_id = xml_element.get('parent')
-        cell.set_attributes_from_xml(cell_store, xml_element)
+        cell.attrs = dict(xml_element.items())
+        
+        if xml_element.get('style') is not None:
+            cell.style = MxStyle.from_string(xml_element.get('style'))
+        geom = xml_element.find('mxGeometry')
+        if geom is not None:
+            cell.geometry = MxGeometry.from_xml(cell_store, geom)
+        if xml_element.get('source') is not None:
+            cell._source_id = xml_element.get('source')
+        if xml_element.get('target') is not None:
+            cell._target_id = xml_element.get('target')
+        cell.vertex = xml_element.get('vertex') == '1'
+        cell.edge = xml_element.get('edge') == '1'
         return cell
 
     def set_attributes_from_xml(self, cell_store, xml_element):
@@ -340,67 +340,31 @@ class MxCell(MxBase):
         cell_xml.set('id', self.cell_id)
         if self.parent is not None:
             cell_xml.set('parent', self.parent.cell_id)
+        if self.style is not None:
+            cell_xml.set('style', self.style.to_string())
+        if self.source is not None:
+            cell_xml.set('source', self.source.cell_id)
+        if self.target is not None:
+            cell_xml.set('target', self.target.cell_id)
+        if self.geometry is not None:
+            geom_xml = self.geometry.to_xml()
+            cell_xml.append(geom_xml)
+        if self.vertex:
+            cell_xml.set('vertex', '1')
+        if self.edge:
+            cell_xml.set('edge', '1')
         return cell_xml
 
     def is_vertex(self):
-        return False
+        return self.attrs['vertex'] == '1'
 
     def is_edge(self):
-        return False
-
-class MxGroupCell(MxCell):
-
-    @classmethod
-    def from_xml(cls, cell_store, xml_element):
-        cell = MxGroupCell(cell_store, None)
-        return cell
-
-class MxNonGroupCell(MxCell):
-
-    def set_attributes_from_xml(self, cell_store, xml_element):
-        super().set_attributes_from_xml(cell_store, xml_element)
-        self.style = MxStyle.from_string(self.attrs.get('style',''))
-
-    def to_xml(self):
-        cell_xml = super().to_xml()
-        cell_xml.set('style', self.style.to_string())
-        return cell_xml
-
-class MxVertexCell(MxNonGroupCell):
-
-    def __init__(self, cell_store, cell_id):
-        super().__init__(cell_store, cell_id)
-        self.attrs['vertex'] = '1'
-
-    @classmethod
-    def from_xml(cls, cell_store, xml_element):
-        cell = MxVertexCell(cell_store, None)
-        return cell
-
-    def to_xml(self):
-        cell_xml = super().to_xml()
-        geom_xml = self.geometry.to_xml()
-        cell_xml.append(geom_xml)
-        return cell_xml
-
-    def set_attributes_from_xml(self, cell_store, xml_element):
-        super().set_attributes_from_xml(cell_store, xml_element)
-        self.geometry = MxVertexGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
-
-    def is_vertex(self):
-        return True
-
-
-class MxEdgeCell(MxNonGroupCell):
-
-    def __init__(self, cell_store, cell_id):
-        super().__init__(cell_store, cell_id)
-        self.attrs['edge'] = '1'
-        self._source_id = None
-        self._target_id = None
+        return self.attrs['edge'] == '1'
 
     @property
     def source(self):
+        if self._source_id is None:
+            return None
         return self.cell_store.cells[self._source_id]
 
     @source.setter
@@ -409,33 +373,13 @@ class MxEdgeCell(MxNonGroupCell):
 
     @property
     def target(self):
+        if self._target_id is None:
+            return None
         return self.cell_store.cells[self._target_id]
 
     @target.setter
     def target(self, cell):
         self._target_id = cell.cell_id
-
-    @classmethod
-    def from_xml(cls, cell_store, xml_element):
-        cell = MxEdgeCell(cell_store, None)
-        cell._source_id = xml_element.get('source')
-        cell._target_id = xml_element.get('target')
-        return cell
-
-    def to_xml(self):
-        cell_xml = super().to_xml()
-        cell_xml.set('source', self.source.cell_id)
-        cell_xml.set('target', self.target.cell_id)
-        geom_xml = self.geometry.to_xml()
-        cell_xml.append(geom_xml)
-        return cell_xml
-
-    def set_attributes_from_xml(self, cell_store, xml_element):
-        super().set_attributes_from_xml(cell_store, xml_element)
-        self.geometry = MxEdgeGeometry.from_xml(cell_store, xml_element.find('mxGeometry'))
-
-    def is_edge(self):
-        return True
 
 
 class MxGraphModel(MxBase):
@@ -536,7 +480,7 @@ class MxGraph:
     def __init__(self):
         self.mxgraph_model = MxGraphModel()
         self.cells = self.mxgraph_model.cells
-        self.root = MxGroupCell(self.cells, "0")
+        self.root = MxCell(self.cells, "0")
         self.mxgraph_model.add(None, self.root)
 
     def _get_parent(self, parent):
@@ -551,7 +495,7 @@ class MxGraph:
     def create_group_cell(self, parent = None, cell_id = None):
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
-        cell = MxGroupCell(self.cells, cell_id)
+        cell = MxCell(self.cells, cell_id)
         self.mxgraph_model.add(parent, cell)
         return cell
 
@@ -559,7 +503,7 @@ class MxGraph:
         """https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertVertex"""
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
-        cell = MxVertexCell(self.cells, cell_id)
+        cell = MxCell(self.cells, cell_id)
         cell.style = style
         cell.geometry = MxGeometry(x=x, y=y, width=width, height=height, relative=relative)
         self.mxgraph_model.add(parent, cell)
@@ -569,7 +513,7 @@ class MxGraph:
         """https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertEdge"""
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
-        cell = MxEdgeCell(self.cells, cell_id)
+        cell = MxCell(self.cells, cell_id)
         if not isinstance(source, MxCell):
             raise Exception("invalid source cell")
         if not isinstance(target, MxCell):
