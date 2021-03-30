@@ -378,7 +378,7 @@ def test_create_mxgraph_model():
     assert len(cells_xml) == 5
     assert cells_xml[4].get('source') == edge.source.cell_id
 
-def test_create_mxgraphmodel_prefix_and_postfix():
+def test_create_mxgraph_model_prefix_and_postfix():
     gm = MxGraphModel()
     gm.prefix="abc"
     gm.postfix="xyz"
