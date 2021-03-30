@@ -141,7 +141,7 @@ def test_read_mxcell_vertex(cell_store):
     cell = MxCell.from_xml(cell_store, cell_xml)
     assert cell.cell_id == "ltYZWVSzQ5NPo-W-WjXg-1"
     assert cell.parent == parent
-    assert cell.is_vertex()
+    assert cell.vertex
     assert cell['value'] == "test vertex"
     assert dict(cell.style.items()) == { 'rounded':'0', 'whiteSpace':'wrap', 'html': '1' }
 
@@ -183,7 +183,7 @@ def test_read_mxcell_edge(cell_store):
     cell_xml = dxml.fromstring(cell_string)
     cell = MxCell.from_xml(cell_store, cell_xml)
     assert cell.cell_id == "ltYZWVSzQ5NPo-W-WjXg-15"
-    assert cell.is_edge()
+    assert cell.edge
     assert cell.source == source
     assert cell.target == target
     assert dict(cell.style.items()) == { "edgeStyle": "none", "curved": "1", "orthogonalLoop": "1", "jettySize": "auto", "html": "1" }
