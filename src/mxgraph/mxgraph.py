@@ -323,112 +323,34 @@ class MxGraphModel(MxBase):
 
     def __init__(self):
         super().__init__()
-        self.cells = CellStore()
-
-    @property
-    def prefix(self):
-        """gets the prefix for cell identifiers."""
-        return self.cells.prefix
-
-    @prefix.setter
-    def prefix(self, value):
-        """sets the prefix for cell identifiers to value."""
-        self.cells.prefix = value
-
-    @property
-    def postfix(self):
-        """gets the postfix for cell identifiers."""
-        return self.cells.postfix
-
-    @postfix.setter
-    def postfix(self, value):
-        """sets the postfix for cell identifiers to value."""
-        self.cells.postfix = value
-
-    def add(self, parent, cell):
-        """add the cell to the parent. This method will set the
-        cell's parent and add it to the cell store.
-        """
-        cell.parent = parent
-        self.cells.add_cell(cell)
 
     @classmethod
-    def from_xml(cls, xml_element):
-        g = MxGraphModel()
-        g.attrs = dict(xml_element.items())
+    def from_xml(cls, cell_store, xml_element):
+        gm = MxGraphModel()
+        gm.attrs = dict(xml_element.items())
         for x in xml_element.findall('root/mxCell'):
-            g.cells.add_cell(MxCell.from_xml(g.cells, x))
-        return g
+            cell_store.add_cell(MxCell.from_xml(cell_store, x))
+        return gm
 
-    def to_xml(self):
+    def to_xml(self, cell_store):
         g_xml = ET.Element('mxGraphModel')
         for k,v in self.attrs.items():
             g_xml.set(k,v)
         root_xml = ET.SubElement(g_xml, 'root')
-        root_xml.extend([c.to_xml() for c in self.cells.values()])
+        root_xml.extend([c.to_xml() for c in cell_store.values()])
         return g_xml
 
-
-class MxDiagram:
-    """Represents a Diagram element (used as a container for a compressed mxGraphModel)."""
-
-    @classmethod
-    def from_xml(cls, xml_element):
-        diagram = MxDiagram()
-        diagram.attrs.update(dict(xml_element.items()))
-
-        t = urllib.parse.unquote(zlib.decompress(base64.b64decode(xml_element.text), -zlib.MAX_WBITS).decode("utf-8"))
-        graph_string = t
-        graph_xml = dxml.fromstring(t)
-
-        diagram.mxgraph_model = MxGraphModel.from_xml(graph_xml)
-        return diagram
-
-    def to_xml(self):
-        diagram_xml = ET.Element('diagram')
-        for k,v in self.attrs.items():
-            diagram_xml.set(k, v)
-        graph_xml = self.mxgraph_model.to_xml(self.cell_store)
-        s = dxml.tostring(graph_xml)
-        co = zlib.compressobj(wbits=-zlib.MAX_WBITS)
-        b = co.compress( bytes(urllib.parse.quote(s), 'ascii'))
-        b += co.flush(zlib.Z_FINISH)
-        s = base64.b64encode(b)
-        diagram_xml.text = s.decode('utf-8')
-        return diagram_xml
-
-
-class MxFile:
-    """Represents an mxFile element (used as a container for one or more Diagrams)."""
-
-    @classmethod
-    def from_file(cls, f):
-        mxfile = MxFile()
-        et = dxml.parse(f)
-        root = et.getroot()
-        mxfile.attrs.update(root.items())   # TODO: dict mixin
-        mxfile.diagram = MxDiagram.from_xml(root.find("diagram"))
-        return mxfile
-
-    def to_file(self, f):
-        # <mxfile host="Electron" modified="2021-03-20T11:18:12.728Z" agent="5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/14.1.8 Chrome/87.0.4280.88 Electron/11.1.1 Safari/537.36" etag="kQo77z5om65T-AUhIzrJ" version="14.1.8" type="device"><diagram id="FSWUdnHGcb4EeTo7y5cW" name="Page-1">
-        diagram_xml = self.diagram.to_xml()
-        mxfile_xml = ET.Element('mxfile')
-        for k,v in self.attrs.items():
-            mxfile_xml.set(k, v)
-        mxfile_xml.append(diagram_xml)
-        # TODO: dump to file f, not stdout
-        ET.dump(mxfile_xml)
-        # f.write(s)
 
 class MxGraph:
     """MxGraph class is a convenience interface to manipulate graphs."""
 
-    def __init__(self):
+    def __init__(self, diagram_id='DIAGRAMID'):
+        self.cells = CellStore()
         self.mxgraph_model = MxGraphModel()
-        self.cells = self.mxgraph_model.cells
         self.root = MxCell(self.cells, "0")
-        self.mxgraph_model.add(None, self.root)
+        self.cells.add_cell(self.root)
+        self.diagram_id = diagram_id
+        self.cells.prefix = self.diagram_id
 
     def _get_parent(self, parent):
         if parent is None:
@@ -438,6 +360,7 @@ class MxGraph:
     def _get_cell_id(self, cell_id):
         if cell_id is None:
             return self.cells.new_id()
+        return cell_id
 
     def create_group_cell(self, parent = None, cell_id = None):
         """Create a group cell (neither an edge nor a vertex) with parent parent and
@@ -446,7 +369,8 @@ class MxGraph:
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
         cell = MxCell(self.cells, cell_id)
-        self.mxgraph_model.add(parent, cell)
+        cell.parent = parent
+        self.cells.add_cell(cell)
         return cell
 
     def insert_vertex(self, parent = None, cell_id = None, value = None, x = None, y = None, width = None, height = None, style = {}, relative = False):
@@ -454,10 +378,11 @@ class MxGraph:
         as described in https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertVertex"""
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
-        cell = MxCell(self.cells, cell_id)
-        cell.style = style
+        cell = MxCell(self.cells, cell_id, vertex=True)
+        cell.style = MxStyle(**style)
         cell.geometry = MxGeometry(x=x, y=y, width=width, height=height, relative=relative)
-        self.mxgraph_model.add(parent, cell)
+        cell.parent = parent
+        self.cells.add_cell(cell)
         return cell
 
     def insert_edge(self, parent=None, cell_id=None, value=None, source=None, target=None, style={}):
@@ -465,7 +390,7 @@ class MxGraph:
         as described in https://jgraph.github.io/mxgraph/docs/js-api/files/view/mxGraph-js.html#mxGraph.insertEdge"""
         parent = self._get_parent(parent)
         cell_id = self._get_cell_id(cell_id)
-        cell = MxCell(self.cells, cell_id)
+        cell = MxCell(self.cells, cell_id, edge=True)
         if not isinstance(source, MxCell):
             raise Exception("invalid source cell")
         if not isinstance(target, MxCell):
@@ -473,8 +398,9 @@ class MxGraph:
         cell.geometry = MxGeometry(relative=True)
         cell.source = source
         cell.target = target
-        cell.style = style
-        self.mxgraph_model.add(parent, cell)
+        cell.style = MxStyle(**style)
+        cell.parent = parent
+        self.cells.add_cell(cell)
         return cell
 
     def add_edge_geometry(self, edge, points):
@@ -493,4 +419,40 @@ class MxGraph:
         """Sets the edge's target point to point (an (x,y)
         integer pair."""
         edge.geometry.target_point = MxPoint(*point)
+
+    @classmethod
+    def from_file(cls, f):
+        g = MxGraph()
+        et = dxml.parse(f)
+        root = et.getroot()
+        diagram = root.find('diagram')
+        g.diagram_id = diagram.get('id')
+        g.cells.prefix = g.diagram_id
+        t = urllib.parse.unquote(zlib.decompress(base64.b64decode(diagram.text), -zlib.MAX_WBITS).decode("utf-8"))
+        graph_xml = dxml.fromstring(t)
+        g.mxgraph_model = MxGraphModel.from_xml(g.cells, graph_xml)
+        return g
+
+    def to_file(self, f):
+        diagram_xml = ET.Element('diagram')
+        diagram_xml.set('id', self.diagram_id)
+        diagram_xml.set('name', 'Page-1')
+        graph_xml = self.mxgraph_model.to_xml(self.cells)
+        s = dxml.tostring(graph_xml)
+        co = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+        b = co.compress( bytes(urllib.parse.quote(s), 'ascii'))
+        b += co.flush(zlib.Z_FINISH)
+        s = base64.b64encode(b)
+        diagram_xml.text = s.decode('utf-8')
+        mxfile_xml = ET.Element('mxfile')
+        mxfile_xml.set('host', 'py-mxgraph')
+        # mxfile_xml.set('modified', 'TODO')
+        # mxfile_xml.set('version', 'TODO')
+        # mxfile_xml.set('type', 'device')
+        mxfile_xml.append(diagram_xml)
+        # TODO: dump to file f, not stdout
+        # ET.dump(mxfile_xml)
+        f.write(dxml.tostring(mxfile_xml).decode('utf-8'))
+
+
 

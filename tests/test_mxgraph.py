@@ -265,7 +265,7 @@ def test_cell_store_cell_id():
 
 
 
-def test_read_mxgraph_model():
+def test_read_mxgraph_model(cell_store):
     graph_string = """
     <mxGraphModel dx="1102" dy="825" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
   <root>
@@ -300,12 +300,12 @@ def test_read_mxgraph_model():
   </root>
 </mxGraphModel>"""
     graph_xml = dxml.fromstring(graph_string)
-    mx = MxGraphModel.from_xml(graph_xml)
+    mx = MxGraphModel.from_xml(cell_store, graph_xml)
     assert mx['pageWidth'] == '850'
-    assert len(mx.cells) == 8
-    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cells['X49CK6sKVQ1RPVU1MZDR-6']
+    assert len(cell_store) == 8
+    assert cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == cell_store['X49CK6sKVQ1RPVU1MZDR-6']
 
-def test_read_edge_defined_before_vertex():
+def test_read_edge_defined_before_vertex(cell_store):
     graph_string = """
     <mxGraphModel dx="1102" dy="825" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
   <root>
@@ -340,56 +340,56 @@ def test_read_edge_defined_before_vertex():
   </root>
 </mxGraphModel>"""
     graph_xml = dxml.fromstring(graph_string)
-    mx = MxGraphModel.from_xml(graph_xml)
-    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].target == mx.cells['X49CK6sKVQ1RPVU1MZDR-2']
-    assert mx.cells['X49CK6sKVQ1RPVU1MZDR-5'].parent == mx.cells['X49CK6sKVQ1RPVU1MZDR-6']
+    mx = MxGraphModel.from_xml(cell_store, graph_xml)
+    assert cell_store['X49CK6sKVQ1RPVU1MZDR-5'].target == cell_store['X49CK6sKVQ1RPVU1MZDR-2']
+    assert cell_store['X49CK6sKVQ1RPVU1MZDR-5'].parent == cell_store['X49CK6sKVQ1RPVU1MZDR-6']
 
 
-def test_create_mxgraph_model():
+def test_create_mxgraph_model(cell_store):
     gm = MxGraphModel()
     gm['pageWidth'] = '850'
-    cell0 = MxCell(gm.cells, gm.cells.new_id())
-    gm.cells.add_cell(cell0)
-    cell1 = MxCell(gm.cells, gm.cells.new_id())
+    cell0 = MxCell(cell_store, cell_store.new_id())
+    cell_store.add_cell(cell0)
+    cell1 = MxCell(cell_store, cell_store.new_id())
     cell1.parent = cell0
-    gm.cells.add_cell(cell1)
-    v1 = MxCell(gm.cells, gm.cells.new_id())
+    cell_store.add_cell(cell1)
+    v1 = MxCell(cell_store, cell_store.new_id())
     v1.parent = cell1
     v1.style = MxStyle(ellipse=None, x=45)
     v1.geometry = MxGeometry(x=10,y=20,width=400,height=300)
-    gm.cells.add_cell(v1)
-    v2 = MxCell(gm.cells, gm.cells.new_id())
+    cell_store.add_cell(v1)
+    v2 = MxCell(cell_store, cell_store.new_id())
     v2.parent = cell1
     v2.style = MxStyle(ellipse=None, x=45)
     v2.geometry = MxGeometry(x=10,y=20,width=400,height=300)
-    gm.cells.add_cell(v2)
-    edge = MxCell(gm.cells, gm.cells.new_id())
+    cell_store.add_cell(v2)
+    edge = MxCell(cell_store, cell_store.new_id())
     edge.parent = cell1
     edge.source = v1
     edge.target = v2
     edge.style = MxStyle(curve=1)
     edge.geometry = MxGeometry(relative=True)
     edge.geometry.points = [MxPoint(200,10)]
-    gm.cells.add_cell(edge)
+    cell_store.add_cell(edge)
 
-    gm_xml = gm.to_xml()
+    gm_xml = gm.to_xml(cell_store)
     assert gm_xml.get('pageWidth') == '850'
     cells_xml = gm_xml.findall('root/mxCell')
     assert len(cells_xml) == 5
     assert cells_xml[4].get('source') == edge.source.cell_id
 
-def test_create_mxgraph_model_prefix_and_postfix():
+def test_create_mxgraph_model_prefix_and_postfix(cell_store):
     gm = MxGraphModel()
-    gm.prefix="abc"
-    gm.postfix="xyz"
-    cell0 = MxCell(gm.cells, gm.cells.new_id())
-    gm.cells.add_cell(cell0)
-    v1 = MxCell(gm.cells, gm.cells.new_id())
+    cell_store.prefix="abc"
+    cell_store.postfix="xyz"
+    cell0 = MxCell(cell_store, cell_store.new_id())
+    cell_store.add_cell(cell0)
+    v1 = MxCell(cell_store, cell_store.new_id())
     v1.parent = cell0
     v1.style = MxStyle(ellipse=None, x=45)
     v1.geometry = MxGeometry(x=10,y=20,width=400,height=300)
-    gm.cells.add_cell(v1)
-    gm_xml = gm.to_xml()
+    cell_store.add_cell(v1)
+    gm_xml = gm.to_xml(cell_store)
     assert gm_xml.findall('root/mxCell')[1].get('id') == f'abc-1-xyz'
 
 def test_mxgraph_add_to_default_root():
@@ -423,7 +423,8 @@ def test_mxgraph_insert_edge():
     assert edge.source == source_vertex
     assert edge.target == target_vertex
     assert edge.parent == parent
-    assert edge.style == edge_style
+    assert isinstance(edge.style, MxStyle)
+    assert edge.style.items() == edge_style.items()
     assert len(edge.geometry.points) == 2
     assert edge.geometry.points[0].x == 10
     assert edge.geometry.points[0].y == 20
@@ -441,9 +442,30 @@ def xtest_read_file():
     mx.to_file(sys.stdout)
     assert False
 
+def read_write_drawio():
+    mxgraph = MxGraph.from_file(sys.stdin)
+    mxgraph.to_file(sys.stdout)
+
+def create_write_drawio():
+    g = MxGraph(diagram_id='idunno')
+    parent = g.create_group_cell(cell_id='1', parent=g.root)
+    style = { 'ellipse': None, 'whiteSpace': 'wrap', 'html': '1', 'aspect': 'fixed' }
+    source_vertex = g.insert_vertex(parent=parent, value="Hello!", x=100, y=200, width=400, height=300, style=style, relative=False)
+    target_vertex = g.insert_vertex(parent=parent, value="Goodbye!", x=400, y=200, width=400, height=300, style=style, relative=False)
+    # edge_style = { 'edgeStyle': 'none', 'curved': '1', 'orthogonalLoop': '1', 'jettySize': 'auto', 'html': '1' }
+    # edge = g.insert_edge(parent=parent, source=source_vertex, target=target_vertex, style=edge_style)
+    # g.add_edge_geometry(edge, [(10,20),(30,40)])
+    # g.set_source_point(edge, (50,60))
+    # g.set_target_point(edge, (70,80))
+    # ET.dump(g.mxgraph_model.to_xml(g.cells))
+    g.to_file(sys.stdout)
+
 def main():
-    mxfile = MxFile.from_file(sys.stdin)
-    ET.dump(mxfile.diagram.mxgraph_model.to_xml(mxfile.diagram.cell_store))
+    # read_write_drawio()
+    create_write_drawio()
+    # mxgraph = MxGraph.from_file(sys.stdin)
+    # mxgraph.to_file(sys.stdout)
+    # ET.dump(mxfile.diagram.mxgraph_model.to_xml(mxfile.diagram.cell_store))
     # mxfile.to_file(sys.stdout)
 
 if __name__=="__main__":
